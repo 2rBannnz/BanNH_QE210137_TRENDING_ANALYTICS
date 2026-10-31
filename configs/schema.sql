@@ -3,6 +3,7 @@
 -- Nguồn: raw JSON trên MinIO (raw/youtube/<job>/dt=<ngày>/<crawler>_<HHMMSS>_pNN.json)
 -- Chạy lại an toàn: chỉ tạo bảng/index nếu chưa có.
 -- Quy ước: captured_at = mốc chụp lấy từ tên object (mọi trang của cùng một lần chạy chung mốc)
+--          region_code = khu vực của crawler đã thu thập (VN/JP/US), gán theo crawler_id
 -- =====================================================================
 
 -- Nhật ký file raw đã nạp: chứng minh dữ liệu đi từ MinIO vào DB, và để bỏ qua file đã nạp
@@ -115,6 +116,42 @@ CREATE TABLE IF NOT EXISTS discover_candidates (
     captured_at     TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (channel_id, method, query_or_parent, captured_at)
 );
+
+-- ---------------------------------------------------------------------
+-- Khu vực thu thập (thêm 2026-10-30 khi gộp dữ liệu JP/US của nhóm)
+--   region_code = khu vực của crawler đã thu thập dòng đó (VN/JP/US), gán theo crawler_id
+--   trong configs/db_config.json. KHÔNG phải quốc gia của kênh (xem channels.country).
+--   Chỉ 3 bảng phụ thuộc vào máy nào quan sát; videos/channels/categories là metadata chung.
+--   Một video có thể có dòng ở nhiều khu vực -> region_code nằm trong khoá chính.
+--   Dữ liệu có trước 30/10 đều của crawler VN -> DEFAULT 'VN' để bù, rồi bỏ DEFAULT
+--   để loader bắt buộc ghi rõ khu vực (quên gán sẽ lỗi NOT NULL thay vì âm thầm thành VN).
+-- ---------------------------------------------------------------------
+ALTER TABLE video_sources      ADD COLUMN IF NOT EXISTS region_code TEXT NOT NULL DEFAULT 'VN';
+ALTER TABLE video_stats        ADD COLUMN IF NOT EXISTS region_code TEXT NOT NULL DEFAULT 'VN';
+ALTER TABLE trending_snapshots ADD COLUMN IF NOT EXISTS region_code TEXT NOT NULL DEFAULT 'VN';
+ALTER TABLE video_sources      ALTER COLUMN region_code DROP DEFAULT;
+ALTER TABLE video_stats        ALTER COLUMN region_code DROP DEFAULT;
+ALTER TABLE trending_snapshots ALTER COLUMN region_code DROP DEFAULT;
+
+-- Đổi khoá chính sang khoá có region_code (chỉ làm một lần, nhận biết qua tên khoá mới)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pk_video_sources') THEN
+        ALTER TABLE video_sources DROP CONSTRAINT IF EXISTS video_sources_pkey;
+        ALTER TABLE video_sources ADD CONSTRAINT pk_video_sources
+            PRIMARY KEY (video_id, source_job, region_code);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pk_video_stats') THEN
+        ALTER TABLE video_stats DROP CONSTRAINT IF EXISTS video_stats_pkey;
+        ALTER TABLE video_stats ADD CONSTRAINT pk_video_stats
+            PRIMARY KEY (video_id, captured_at, source_job, region_code);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pk_trending_snapshots') THEN
+        ALTER TABLE trending_snapshots DROP CONSTRAINT IF EXISTS trending_snapshots_pkey;
+        ALTER TABLE trending_snapshots ADD CONSTRAINT pk_trending_snapshots
+            PRIMARY KEY (video_id, captured_at, source, category_id, region_code);
+    END IF;
+END $$;
 
 -- ---------------------------------------------------------------------
 -- Dòng TẠM (stub) để khoá ngoại luôn hợp lệ mà không mất dữ liệu

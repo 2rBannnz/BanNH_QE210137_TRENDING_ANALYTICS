@@ -16,6 +16,8 @@ Làm sạch:
   - thời gian ISO 8601 -> TIMESTAMPTZ; thời lượng 'PT1H2M3S' -> giây
   - số đếm dạng chuỗi -> BIGINT; video ẩn like/comment -> NULL
   - captured_at lấy từ tên object (dt=<ngày>/<crawler>_<HHMMSS>_pNN.json)
+  - region_code (khu vực thu thập) tra từ crawler trong tên object theo crawler_regions (db_config.json);
+    crawler chưa khai báo -> dừng trước khi nạp
   - channels/videos giữ bản mới nhất theo captured_at, first_seen_at giữ mốc sớm nhất
 """
 import argparse
@@ -34,6 +36,8 @@ from src.utils.config import Config
 logger = logging.getLogger(__name__)
 
 DB_CONFIG = json.loads((Config.REPO_ROOT / "configs" / "db_config.json").read_text(encoding="utf-8"))
+# Khu vực thu thập của từng máy crawl (mỗi thành viên chạy một REGION_CODE trên máy riêng)
+CRAWLER_REGIONS = DB_CONFIG["crawler_regions"]
 
 KEY_PATTERN = re.compile(
     r"^raw/youtube/(?P<job>.+)/dt=(?P<date>\d{4}-\d{2}-\d{2})/"
@@ -107,16 +111,16 @@ UPSERT_SQL = {
             last_seen_at = GREATEST(videos.last_seen_at, EXCLUDED.last_seen_at)
     """,
     "video_sources": """
-        INSERT INTO video_sources (video_id, source_job, first_captured_at) VALUES %s
-        ON CONFLICT (video_id, source_job) DO UPDATE
+        INSERT INTO video_sources (video_id, source_job, first_captured_at, region_code) VALUES %s
+        ON CONFLICT (video_id, source_job, region_code) DO UPDATE
             SET first_captured_at = LEAST(video_sources.first_captured_at, EXCLUDED.first_captured_at)
     """,
     "video_stats": """
-        INSERT INTO video_stats (video_id, captured_at, source_job, view_count, like_count, comment_count)
+        INSERT INTO video_stats (video_id, captured_at, source_job, view_count, like_count, comment_count, region_code)
         VALUES %s ON CONFLICT DO NOTHING
     """,
     "trending_snapshots": """
-        INSERT INTO trending_snapshots (video_id, captured_at, source, category_id, page_index, position)
+        INSERT INTO trending_snapshots (video_id, captured_at, source, category_id, page_index, position, region_code)
         VALUES %s ON CONFLICT DO NOTHING
     """,
     "playlist_items": """
@@ -159,12 +163,13 @@ def to_int(value):
 
 
 def parse_key(key):
-    """Tách job, crawler và mốc chụp từ tên object."""
+    """Tách job, crawler, khu vực và mốc chụp từ tên object."""
     match = KEY_PATTERN.match(key)
     if not match:
         return None
     captured_at = datetime.strptime(f"{match['date']} {match['hms']}", "%Y-%m-%d %H%M%S").replace(tzinfo=timezone.utc)
-    return {"job": match["job"], "crawler_id": match["crawler"], "captured_at": captured_at}
+    return {"job": match["job"], "crawler_id": match["crawler"], "captured_at": captured_at,
+            "region_code": CRAWLER_REGIONS.get(match["crawler"])}
 
 
 # ----------------------------------------------------------------------------
@@ -191,10 +196,10 @@ class Batch:
         latest[seen_index] = first[seen_index]          # first_seen_at
         self.keyed[table][key] = tuple(latest)
 
-    def add_source(self, video_id, job, captured_at):
-        old = self.keyed["video_sources"].get((video_id, job))
+    def add_source(self, video_id, job, captured_at, region):
+        old = self.keyed["video_sources"].get((video_id, job, region))
         if old is None or captured_at < old[2]:
-            self.keyed["video_sources"][(video_id, job)] = (video_id, job, captured_at)
+            self.keyed["video_sources"][(video_id, job, region)] = (video_id, job, captured_at, region)
 
     def add_row(self, table, key, row):
         self.rows[table].setdefault(key, row)
@@ -236,9 +241,12 @@ def channel_row(item, job, captured_at):
 
 def add_envelope(batch, key, meta, env):
     """Đưa một file raw vào lô. Trả về số item đã đọc."""
-    job, captured_at = meta["job"], meta["captured_at"]
+    job, captured_at, region = meta["job"], meta["captured_at"], meta["region_code"]
     endpoint = env.get("request", {}).get("endpoint")
     params = env.get("request", {}).get("params", {})
+    if params.get("regionCode") and params["regionCode"] != region:
+        # Request ghi rõ khu vực khác với khai báo của crawler -> crawler_regions sai
+        raise ValueError(f"{key}: regionCode={params['regionCode']} nhưng crawler_regions ghi {region}")
     page_index = env.get("page_index", 0)
     items = (env.get("response") or {}).get("items", [])
 
@@ -251,17 +259,17 @@ def add_envelope(batch, key, meta, env):
         for position, item in enumerate(items):
             video_id = item["id"]
             batch.keep_latest("videos", video_id, video_row(item, job, captured_at), seen_index=16)
-            batch.add_source(video_id, job, captured_at)
+            batch.add_source(video_id, job, captured_at, region)
             stats = item.get("statistics", {})
-            batch.add_row("video_stats", (video_id, captured_at, job), (
+            batch.add_row("video_stats", (video_id, captured_at, job, region), (
                 video_id, captured_at, job, to_int(stats.get("viewCount")),
-                to_int(stats.get("likeCount")), to_int(stats.get("commentCount")),
+                to_int(stats.get("likeCount")), to_int(stats.get("commentCount")), region,
             ))
             if job in ("trending", "trending_category"):
                 source = "main" if job == "trending" else "category"
                 category_id = int(params.get("videoCategoryId", 0))
-                batch.add_row("trending_snapshots", (video_id, captured_at, source, category_id),
-                              (video_id, captured_at, source, category_id, page_index, position))
+                batch.add_row("trending_snapshots", (video_id, captured_at, source, category_id, region),
+                              (video_id, captured_at, source, category_id, page_index, position, region))
 
     elif job in CHANNEL_JOBS:
         for item in items:
@@ -274,7 +282,7 @@ def add_envelope(batch, key, meta, env):
             video_id = details.get("videoId")
             if not video_id:
                 continue
-            batch.add_source(video_id, job, captured_at)
+            batch.add_source(video_id, job, captured_at, region)
             batch.add_row("playlist_items", (video_id, playlist_id, captured_at), (
                 video_id, playlist_id, parse_time(details.get("videoPublishedAt")), captured_at, job,
             ))
@@ -439,6 +447,10 @@ def main():
 
     keys = [key for key in list_candidate_keys(source, args.prefix, args.recent_days, conn) if key not in loaded]
     logger.info("Nguồn %s: %d file mới cần nạp (đã nạp trước đó: %d)", source.name, len(keys), len(loaded))
+    unknown = {meta["crawler_id"] for meta in map(parse_key, keys) if meta and meta["region_code"] is None}
+    if unknown:
+        # Không đoán khu vực: nạp sai vùng làm hỏng nhãn/độ phủ mà không báo lỗi
+        raise SystemExit(f"Crawler chưa khai báo trong crawler_regions (configs/db_config.json): {sorted(unknown)}")
 
     started, done, items, skipped, failed = time.time(), 0, 0, [], []
     totals = {}

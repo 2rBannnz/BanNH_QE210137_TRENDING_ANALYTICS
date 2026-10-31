@@ -3,7 +3,13 @@
   "port": 5432,
   "database": "youtube_trending_db",
   "schema": "public",
-  "sql_files": ["configs/schema.sql", "configs/labels.sql"],
+  "sql_files": ["configs/schema.sql", "configs/labels.sql", "configs/features.sql"],
   "load_batch_files": 500,
-  "minio_download_threads": 8
+  "minio_download_threads": 8,
+  "crawler_regions": {
+    "t1-2rban": "VN",
+    "t1-2rbannnz": "VN",
+    "duc": "JP",
+    "phat": "US"
+  }
 }

@@ -6,9 +6,13 @@
 --   is_trending_main     : có mặt trong bảng mostPopular chính (job trending)
 --   is_trending_category : có mặt trong bảng mostPopular của một danh mục (job trending_category)
 -- Hai nhãn độc lập, KHÔNG gộp; một video có thể có cả hai nhãn = 1.
+--
+-- Khu vực (2026-10-30): DB chứa cả dữ liệu JP/US của nhóm. Mọi view ở đây chỉ dùng dòng
+-- region_code = 'VN' (cohort, nhãn, độ phủ đều tính theo máy crawl VN). Đổi khu vực phân tích
+-- -> sửa tất cả chỗ có region_code = 'VN' trong file này và features.sql.
 -- =====================================================================
 
-DROP VIEW IF EXISTS v_video_labels, v_cohort, v_trending_rank, v_videos_analysis, v_stats_analysis CASCADE;
+DROP VIEW IF EXISTS v_video_features, v_video_labels, v_cohort, v_trending_rank, v_videos_analysis, v_stats_analysis CASCADE;
 
 -- Video dùng cho phân tích: thấy ở ít nhất một job KHÔNG phải backfill.
 -- Backfill (lịch sử 30 ngày của kênh) vẫn nằm trong DB nhưng không có nhãn đáng tin.
@@ -19,13 +23,13 @@ FROM videos v
 JOIN channels c ON c.channel_id = v.channel_id AND NOT c.is_stub
 WHERE EXISTS (
     SELECT 1 FROM video_sources s
-    WHERE s.video_id = v.video_id AND s.source_job NOT LIKE 'backfill/%'
+    WHERE s.video_id = v.video_id AND s.source_job NOT LIKE 'backfill/%' AND s.region_code = 'VN'
 );
 
 -- Số liệu tương tác không tính các lần chụp của backfill, chỉ của video trong v_videos_analysis
 CREATE VIEW v_stats_analysis AS
 SELECT s.* FROM video_stats s
-WHERE s.source_job NOT LIKE 'backfill/%'
+WHERE s.source_job NOT LIKE 'backfill/%' AND s.region_code = 'VN'
   AND EXISTS (SELECT 1 FROM v_videos_analysis v WHERE v.video_id = s.video_id);
 
 -- Thứ hạng trong từng lần chụp của từng bảng xếp hạng (1 = cao nhất)
@@ -33,7 +37,8 @@ CREATE VIEW v_trending_rank AS
 SELECT t.*,
        ROW_NUMBER() OVER (PARTITION BY t.captured_at, t.source, t.category_id
                           ORDER BY t.page_index, t.position) AS rank
-FROM trending_snapshots t;
+FROM trending_snapshots t
+WHERE t.region_code = 'VN';
 
 -- Cohort: video mới do job uploads phát hiện, ra mắt trong khoảng trending chính được theo dõi đủ 72 giờ.
 -- Video ra mắt trước lần chụp trending đầu tiên hoặc sau (lần chụp cuối - 72h) bị loại vì chưa quan sát đủ.
@@ -42,11 +47,11 @@ FROM trending_snapshots t;
 CREATE VIEW v_cohort AS
 WITH crawl_range AS (
     SELECT MIN(captured_at) AS first_at, MAX(captured_at) AS last_at
-    FROM trending_snapshots WHERE source = 'main'
+    FROM trending_snapshots WHERE source = 'main' AND region_code = 'VN'
 )
 SELECT v.*, COALESCE(v.actual_start_time, v.published_at) AS release_at
 FROM videos v
-JOIN video_sources s ON s.video_id = v.video_id AND s.source_job = 'uploads/videos'
+JOIN video_sources s ON s.video_id = v.video_id AND s.source_job = 'uploads/videos' AND s.region_code = 'VN'
 CROSS JOIN crawl_range r
 WHERE COALESCE(v.actual_start_time, v.published_at) >= r.first_at
   AND COALESCE(v.actual_start_time, v.published_at) <= r.last_at - INTERVAL '72 hours';
@@ -55,7 +60,7 @@ WHERE COALESCE(v.actual_start_time, v.published_at) >= r.first_at
 CREATE VIEW v_video_labels AS
 WITH category_range AS (
     SELECT MIN(captured_at) AS first_at, MAX(captured_at) AS last_at
-    FROM trending_snapshots WHERE source = 'category'
+    FROM trending_snapshots WHERE source = 'category' AND region_code = 'VN'
 ),
 hits AS (
     -- Lần đầu lên bảng và thứ hạng cao nhất trong 72 giờ đầu, tách theo nguồn
