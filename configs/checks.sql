@@ -2,6 +2,8 @@
 -- SQL kiểm tra dữ liệu sau khi nạp từ MinIO vào PostgreSQL (Report 2)
 -- Chạy:  docker exec -i ady201m_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < configs/checks.sql
 -- Các check "lỗi" mong đợi kết quả = 0.
+-- Khu vực (2026-10-30): bảng trending_snapshots / video_sources / video_stats có region_code (VN/JP/US).
+-- Check về máy crawl (khoảng trống, cohort) tách theo vùng; check trên view (12–14) chỉ là VN.
 -- =====================================================================
 \pset footer off
 -- Container Postgres mặc định chỉ có /dev/shm 64 MB: join song song lớn bị lỗi
@@ -18,10 +20,21 @@ UNION ALL SELECT 'trending_snapshots',  COUNT(*) FROM trending_snapshots
 UNION ALL SELECT 'playlist_items',      COUNT(*) FROM playlist_items
 UNION ALL SELECT 'discover_candidates', COUNT(*) FROM discover_candidates;
 
+\echo '=== 1b. Số dòng theo khu vực thu thập (3 bảng có region_code) ==='
+SELECT region_code,
+       (SELECT COUNT(*) FROM video_sources      s WHERE s.region_code = r.region_code) AS video_sources,
+       (SELECT COUNT(*) FROM video_stats        s WHERE s.region_code = r.region_code) AS video_stats,
+       (SELECT COUNT(*) FROM trending_snapshots t WHERE t.region_code = r.region_code) AS trending_snapshots
+FROM (SELECT DISTINCT region_code FROM video_sources) r ORDER BY 1;
+
 \echo '=== 2. File raw đã nạp theo job (lineage MinIO -> DB) ==='
 SELECT job, COUNT(*) AS so_file, SUM(n_items) AS so_item,
        MIN(captured_at) AS lan_dau, MAX(captured_at) AS lan_cuoi
 FROM raw_files GROUP BY job ORDER BY job;
+
+\echo '=== 2b. File raw đã nạp theo máy crawl ==='
+SELECT crawler_id, COUNT(*) AS so_file, MIN(captured_at) AS lan_dau, MAX(captured_at) AS lan_cuoi
+FROM raw_files GROUP BY crawler_id ORDER BY crawler_id;
 
 \echo '=== 3. Null ở cột quan trọng (videos) ==='
 SELECT COUNT(*) FILTER (WHERE channel_id   IS NULL) AS null_channel_id,
@@ -41,25 +54,37 @@ FROM video_stats;
 \echo '=== 5. [LỖI] Trùng khoá chính (đã có PK chặn, kiểm tra lại cho chắc) ==='
 SELECT 'videos' AS bang, COUNT(*) - COUNT(DISTINCT video_id) AS so_trung FROM videos
 UNION ALL SELECT 'channels', COUNT(*) - COUNT(DISTINCT channel_id) FROM channels
-UNION ALL SELECT 'video_stats', COUNT(*) - COUNT(DISTINCT (video_id, captured_at, source_job)) FROM video_stats;
+UNION ALL SELECT 'video_stats', COUNT(*) - COUNT(DISTINCT (video_id, captured_at, source_job, region_code)) FROM video_stats
+UNION ALL SELECT 'video_sources', COUNT(*) - COUNT(DISTINCT (video_id, source_job, region_code)) FROM video_sources
+UNION ALL SELECT 'trending_snapshots',
+       COUNT(*) - COUNT(DISTINCT (video_id, captured_at, source, category_id, region_code)) FROM trending_snapshots;
 
 \echo '=== 6. Lần chụp trước giờ đăng video, tách theo nguyên nhân ==='
 -- livestream/premiere: YouTube đổi publishedAt sau khi phát xong -> dùng actual_start_time (đã xử lý ở labels.sql)
 -- video thường: captured_at = lúc BẮT ĐẦU lượt crawl, API gọi muộn hơn vài phút -> lệch < 1 giờ là bình thường
 -- [LỖI] thật sự: video thường lệch >= 1 giờ (mong đợi = 0)
-SELECT CASE WHEN v.actual_start_time IS NOT NULL OR v.scheduled_start_time IS NOT NULL THEN 'livestream/premiere'
+-- Tách theo vùng: máy US (phat) có lượt chạy dài ~7 giờ nên uploads/stats lệch tới ~7 giờ (xem P5, P20)
+SELECT s.region_code,
+       CASE WHEN v.actual_start_time IS NOT NULL OR v.scheduled_start_time IS NOT NULL THEN 'livestream/premiere'
             WHEN v.published_at - s.captured_at < INTERVAL '1 hour' THEN 'video thuong, lech < 1h'
             ELSE '[LOI] video thuong, lech >= 1h' END AS nguyen_nhan,
        COUNT(*) AS so_dong,
        ROUND(MAX(EXTRACT(EPOCH FROM v.published_at - s.captured_at)) / 3600, 2) AS lech_lon_nhat_gio
 FROM video_stats s JOIN videos v USING (video_id)
 WHERE s.captured_at < v.published_at
-GROUP BY 1 ORDER BY 1;
+GROUP BY 1, 2 ORDER BY 1, 2;
+
+\echo '=== 6b. Độ trễ của lượt chạy: crawl_time_utc (lúc gọi API) - captured_at (mốc trong tên file), theo máy ==='
+SELECT crawler_id, job,
+       ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM crawl_time_utc - captured_at)) / 60)::NUMERIC) AS tre_trung_vi_phut,
+       ROUND((MAX(EXTRACT(EPOCH FROM crawl_time_utc - captured_at)) / 3600)::NUMERIC, 1) AS tre_max_gio
+FROM raw_files WHERE job IN ('trending', 'uploads/videos', 'stats')
+GROUP BY 1, 2 ORDER BY 1, 2;
 
 \echo '=== 7. View giảm giữa hai lần chụp liên tiếp (YouTube đôi khi lọc view ảo) ==='
 WITH ordered AS (
     SELECT video_id, view_count,
-           LAG(view_count) OVER (PARTITION BY video_id ORDER BY captured_at) AS prev_view
+           LAG(view_count) OVER (PARTITION BY video_id, region_code ORDER BY captured_at) AS prev_view
     FROM video_stats WHERE view_count IS NOT NULL
 )
 SELECT COUNT(*) FILTER (WHERE view_count < prev_view) AS so_lan_giam,
@@ -92,40 +117,46 @@ JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.
 WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public'
 ORDER BY 1, 2;
 
-\echo '=== 9. Khoảng trống giữa hai lần chụp trending chính (giờ) — crawler có chạy liên tục? ==='
-WITH runs AS (SELECT DISTINCT captured_at FROM trending_snapshots WHERE source = 'main'),
-gaps AS (SELECT captured_at, captured_at - LAG(captured_at) OVER (ORDER BY captured_at) AS gap FROM runs)
-SELECT COUNT(*) AS so_lan_chup,
+\echo '=== 9. Khoảng trống giữa hai lần chụp trending chính (giờ), theo vùng — crawler có chạy liên tục? ==='
+WITH runs AS (SELECT DISTINCT region_code, captured_at FROM trending_snapshots WHERE source = 'main'),
+gaps AS (SELECT region_code, captured_at,
+                captured_at - LAG(captured_at) OVER (PARTITION BY region_code ORDER BY captured_at) AS gap
+         FROM runs)
+SELECT region_code, COUNT(*) AS so_lan_chup,
+       COUNT(DISTINCT date_trunc('hour', captured_at)) AS so_gio_co_chup,
        ROUND(EXTRACT(EPOCH FROM PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY gap)) / 3600, 2) AS gap_trung_vi_gio,
        ROUND(EXTRACT(EPOCH FROM MAX(gap)) / 3600, 2) AS gap_lon_nhat_gio,
        COUNT(*) FILTER (WHERE gap > INTERVAL '3 hours') AS so_gap_tren_3h
-FROM gaps;
+FROM gaps GROUP BY region_code ORDER BY region_code;
 
-\echo '=== 10. Số video mới (uploads) theo ngày đăng (giờ VN) ==='
+\echo '=== 10. Số video mới (uploads VN) theo ngày đăng (giờ VN) ==='
 SELECT (v.published_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE AS ngay_dang, COUNT(*) AS so_video
-FROM videos v JOIN video_sources s ON s.video_id = v.video_id AND s.source_job = 'uploads/videos'
+FROM videos v JOIN video_sources s ON s.video_id = v.video_id AND s.source_job = 'uploads/videos' AND s.region_code = 'VN'
 WHERE v.published_at >= '2026-09-20'
 GROUP BY 1 ORDER BY 1;
 
-\echo '=== 11. So sánh CÓ / KHÔNG CÓ backfill ==='
+\echo '=== 11. So sánh CÓ / KHÔNG CÓ backfill (VN; view phân tích chỉ chứa VN) ==='
+-- Video có metadata (dòng trong videos) và được máy VN thấy; video chỉ có trong playlist không tính
+WITH vn_videos AS (SELECT DISTINCT s.video_id FROM video_sources s JOIN videos v USING (video_id)
+                   WHERE s.region_code = 'VN')
 SELECT 'video khac nhau' AS chi_so,
-       (SELECT COUNT(*) FROM videos) AS co_backfill,
+       (SELECT COUNT(*) FROM vn_videos) AS co_backfill,
        (SELECT COUNT(*) FROM v_videos_analysis) AS khong_backfill
 UNION ALL SELECT 'dong video_stats',
-       (SELECT COUNT(*) FROM video_stats), (SELECT COUNT(*) FROM v_stats_analysis)
+       (SELECT COUNT(*) FROM video_stats WHERE region_code = 'VN'), (SELECT COUNT(*) FROM v_stats_analysis)
 UNION ALL SELECT 'kenh co video',
-       (SELECT COUNT(DISTINCT channel_id) FROM videos),
+       (SELECT COUNT(DISTINCT v.channel_id) FROM videos v JOIN vn_videos USING (video_id)),
        (SELECT COUNT(DISTINCT channel_id) FROM v_videos_analysis)
 UNION ALL SELECT 'video tung len trending chinh',
-       (SELECT COUNT(DISTINCT video_id) FROM trending_snapshots WHERE source = 'main'),
+       (SELECT COUNT(DISTINCT video_id) FROM trending_snapshots WHERE source = 'main' AND region_code = 'VN'),
        (SELECT COUNT(DISTINCT t.video_id) FROM trending_snapshots t
-         JOIN v_videos_analysis v USING (video_id) WHERE t.source = 'main')
+         JOIN v_videos_analysis v USING (video_id) WHERE t.source = 'main' AND t.region_code = 'VN')
 UNION ALL SELECT 'video tung len trending danh muc',
-       (SELECT COUNT(DISTINCT video_id) FROM trending_snapshots WHERE source = 'category'),
+       (SELECT COUNT(DISTINCT video_id) FROM trending_snapshots WHERE source = 'category' AND region_code = 'VN'),
        (SELECT COUNT(DISTINCT t.video_id) FROM trending_snapshots t
-         JOIN v_videos_analysis v USING (video_id) WHERE t.source = 'category')
+         JOIN v_videos_analysis v USING (video_id) WHERE t.source = 'category' AND t.region_code = 'VN')
 UNION ALL SELECT 'video chi co o backfill',
-       (SELECT COUNT(*) FROM videos) - (SELECT COUNT(*) FROM v_videos_analysis), 0;
+       (SELECT COUNT(*) FROM vn_videos) - (SELECT COUNT(*) FROM v_videos_analysis), 0;
 
 \echo '=== 12. Cohort và tỉ lệ 2 nhãn (cửa sổ 72h) ==='
 SELECT COUNT(*) AS cohort,
