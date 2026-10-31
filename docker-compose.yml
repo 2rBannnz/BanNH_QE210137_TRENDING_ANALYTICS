@@ -63,6 +63,28 @@ services:
       - postgres
     restart: "no"
 
+  # --- Dịch vụ 5: RStudio — EDA bằng R (Report 3), http://localhost:8787 ---
+  rstudio:
+    build:
+      context: .
+      dockerfile: docker/rstudio/Dockerfile
+    container_name: ady201m_rstudio
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    env_file: .env
+    environment:
+      # Đăng nhập RStudio: user "rstudio", mật khẩu đặt trong .env
+      PASSWORD: ${RSTUDIO_PASSWORD}
+      # Trong mạng Docker, gọi Postgres theo tên service
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      # Mở repo trong RStudio tại ~/project (notebooks/, configs/, reports/)
+      - ./:/home/rstudio/project
+    depends_on:
+      - postgres
+
 volumes:
   minio_data:
   postgres_data:
