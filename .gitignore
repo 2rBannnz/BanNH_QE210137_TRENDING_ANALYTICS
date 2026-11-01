@@ -33,6 +33,8 @@ data/state/
 !data/raw/.gitkeep
 # Mẫu raw nhỏ (mỗi job 1 file) để người chấm xem cấu trúc envelope
 !data/raw/sample/
+# Bản đóng băng đầy đủ của tập phân tích (~47 MB) — repo chỉ giữ file *_sample.csv
+data/processed/*_full_*.csv
 
 # File log ghi vết lịch sử cào
 logs/*.log
