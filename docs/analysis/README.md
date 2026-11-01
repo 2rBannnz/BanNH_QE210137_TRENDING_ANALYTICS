@@ -21,6 +21,7 @@ Tài liệu chia toàn bộ công việc hiện có của đồ án thành **3 p
 - Dữ liệu thu thập từ 24/09/2026. Crawler dừng sau lần chụp lúc 06:00 ngày 24/10.
 - Số liệu database lấy ngày 21/10 (Report 2). Số liệu EDA lấy ngày 23/10 (Report 3).
 - **30/10:** gộp thêm dữ liệu JP (crawler `duc`) và US (`phat`) của 2 thành viên vào cùng DB (P20–P22); tập phân tích VN chốt lại: cohort 156.311, `is_clean` 40.531 (398 trending chính). EDA cũ bỏ, làm lại theo kế hoạch cuối [02_cleaning.md](02_cleaning.md#kế-hoạch-từ-đây-tới-eda).
+- **01/11:** nhãn danh mục có độ phủ riêng (ô 3 giờ, ngưỡng 0,3) và tập sạch riêng `is_clean_category`: 39.669 video, 1.283 trending danh mục (P15). Dữ liệu chốt ở lần chụp cuối 24/10, không crawl thêm.
 - Ký hiệu "≈" là giá trị đọc từ biểu đồ.
 
 ---
@@ -85,7 +86,7 @@ Bảng dữ liệu đích: **mỗi dòng là 1 video mới đăng**. Mỗi dòng
 | P13 | Loại dữ liệu không dùng được | `v_videos_analysis`, `v_stats_analysis` |
 | P14 | Biến khung giờ và biến kiểm soát | `features.sql` |
 | P15 | Nhãn 0 sai do crawler vắng mặt | `coverage_24h`, `coverage_72h` |
-| P16 | Cờ làm sạch và tập `is_clean` | `features.sql` |
+| P16 | Cờ làm sạch, tập `is_clean` và `is_clean_category` | `features.sql` |
 | P17 | Kiểm tra chất lượng dữ liệu bằng SQL | `configs/checks.sql` |
 | P18 | Notebook làm sạch (minh chứng, quyết định) | `notebooks/1_Exploration.ipynb` |
 | P19 | Sự cố vận hành của database | `docker-compose.yml`, `checks.sql` |
@@ -102,7 +103,7 @@ Bảng dữ liệu đích: **mỗi dòng là 1 video mới đăng**. Mỗi dòng
 ## Kết luận xuyên suốt
 
 1. **Phần 1:** thu được 165.393 file raw (9,32 GB) của máy VN. Nhưng crawler chạy trên máy cá nhân nên **chỉ khoảng 50% số giờ có lần chụp trending**, ít nhất vào 10–13h. Đây là điểm yếu lớn nhất của dữ liệu. Ngày 30/10 gộp thêm 65.179 file của máy JP và US (P20–P21).
-2. **Phần 2:** biến điểm yếu đó thành **cột đo được** (`coverage_24h`, `coverage_72h`) và lọc theo ngưỡng 0,6. Mốc 30/10: cohort VN 156.311 video còn **40.531 video sạch (398 video trending chính)**.
+2. **Phần 2:** biến điểm yếu đó thành **cột đo được** (`coverage_24h`, `coverage_72h`; chart danh mục có `coverage_cat_*` riêng) và lọc theo ngưỡng 0,6 cho nhãn chính, 0,3 cho nhãn danh mục. Mốc 01/11: cohort VN 156.311 video còn **40.531 video sạch cho nhãn chính (398 trending)** và **39.669 video sạch cho nhãn danh mục (1.283 trending)**.
 3. **Phần 3:** đang làm lại.
 
 ## Điểm lệch giữa tài liệu cũ và code hiện tại

@@ -12,6 +12,15 @@
 -- có lần chụp, thấp nhất 10–13h). Video ra mắt lúc crawler tắt có thể đã trending mà không ai thấy
 -- -> nhãn 0 sai. coverage_24h / coverage_72h = tỉ lệ số giờ có lần chụp trending chính trong
 -- 24h / 72h đầu sau release_at. is_clean yêu cầu cả hai >= COVERAGE_MIN (0.6).
+--
+-- Độ phủ chart danh mục (2026-11-01): job trending_category chạy mỗi 3 giờ (từ 09/10), có lần chỉ
+-- chụp được vài danh mục -> đếm theo ô 3 giờ kể từ release_at, chỉ tính lần chụp có ĐÚNG danh mục
+-- của video. coverage_cat_24h = số ô có chụp / 8, coverage_cat_72h = / 24.
+-- Ngưỡng 0.3 (khác 0.6 của chart chính): chart danh mục chỉ chụp 52 lần trong 15 ngày, độ phủ cao nhất 0.708;
+-- tỉ lệ trending danh mục đi ngang (~3,2–3,5%) từ độ phủ ~0.2 trở lên -> nhãn 0 đã đáng tin.
+-- 0.3 = ít nhất 3/8 ô trong 24h đầu và 8/24 ô trong 72h.
+-- is_clean          : tập sạch cho nhãn chính (is_trending_main)
+-- is_clean_category : tập sạch cho nhãn danh mục (cùng các cờ khác, nhưng dùng độ phủ danh mục)
 -- =====================================================================
 
 DROP VIEW IF EXISTS v_video_features;
@@ -30,6 +39,23 @@ coverage AS (
     LEFT JOIN run_hours r
            ON r.h >= l.release_at AND r.h < l.release_at + INTERVAL '72 hours'
     GROUP BY l.video_id, l.release_at
+),
+category_runs AS (
+    -- Các lần máy VN chụp chart danh mục, theo từng danh mục
+    SELECT DISTINCT captured_at, category_id
+    FROM trending_snapshots WHERE source = 'category' AND region_code = 'VN'
+),
+coverage_cat AS (
+    -- Ô 3 giờ thứ k (0..23) kể từ release_at; đếm ô có ít nhất một lần chụp danh mục của video
+    SELECT l.video_id,
+           COUNT(DISTINCT FLOOR(EXTRACT(EPOCH FROM r.captured_at - l.release_at) / 10800))
+               FILTER (WHERE r.captured_at < l.release_at + INTERVAL '24 hours') / 8.0  AS coverage_cat_24h,
+           COUNT(DISTINCT FLOOR(EXTRACT(EPOCH FROM r.captured_at - l.release_at) / 10800)) / 24.0 AS coverage_cat_72h
+    FROM v_video_labels l
+    LEFT JOIN category_runs r
+           ON r.category_id = l.category_id
+          AND r.captured_at >= l.release_at AND r.captured_at < l.release_at + INTERVAL '72 hours'
+    GROUP BY l.video_id
 )
 SELECT
     l.*,
@@ -79,6 +105,19 @@ SELECT
         OR l.duration_s > 3 * 3600
         OR c.coverage_24h < 0.6
         OR c.coverage_72h < 0.6
-    )                                                                           AS is_clean
+    )                                                                           AS is_clean,
+    -- Độ phủ chart danh mục (0–1), theo ô 3 giờ
+    ROUND(k.coverage_cat_24h::NUMERIC, 3)::DOUBLE PRECISION                     AS coverage_cat_24h,
+    ROUND(k.coverage_cat_72h::NUMERIC, 3)::DOUBLE PRECISION                     AS coverage_cat_72h,
+    (k.coverage_cat_24h < 0.3 OR k.coverage_cat_72h < 0.3)                      AS flag_low_coverage_cat,
+    -- Chỉ video có nhãn danh mục (không NULL) mới có thể sạch cho nhãn này
+    (l.is_trending_category IS NOT NULL AND NOT (
+        l.duration_s IS NULL OR l.duration_s = 0
+        OR l.channel_subscribers IS NULL
+        OR l.duration_s > 3 * 3600
+        OR k.coverage_cat_24h < 0.3
+        OR k.coverage_cat_72h < 0.3
+    ))                                                                          AS is_clean_category
 FROM v_video_labels l
-JOIN coverage c ON c.video_id = l.video_id;
+JOIN coverage c ON c.video_id = l.video_id
+JOIN coverage_cat k ON k.video_id = l.video_id;

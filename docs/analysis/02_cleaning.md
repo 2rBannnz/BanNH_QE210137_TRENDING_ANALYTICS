@@ -57,13 +57,14 @@ Mỗi video trong `response.items` sinh ra:
 | `v_cohort` | Video nào có nhãn đáng tin? | Chỉ video do `uploads` của VN phát hiện, ra mắt trong khoảng chart VN được theo dõi đủ 72 giờ |
 | `v_trending_rank` | Video đứng hạng mấy trong mỗi lần chụp? | Chỉ chart VN |
 | `v_video_labels` | Video có lên trending trong 72 giờ đầu không? | Gắn 2 nhãn `is_trending_main`, `is_trending_category` |
-| `v_video_features` | Video đăng khung giờ nào, nhãn 0 có đáng tin không? | Thêm khung giờ, biến kiểm soát, **độ phủ**, cờ, `is_clean` |
+| `v_video_features` | Video đăng khung giờ nào, nhãn 0 có đáng tin không? | Thêm khung giờ, biến kiểm soát, **độ phủ** (chart chính và chart danh mục), cờ, `is_clean`, `is_clean_category` |
 
 **5. Vì sao cần `is_clean` (P15, P16).**
 Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. Nhãn 0 thì **có thể sai**, vì video có thể trending đúng lúc crawler tắt. Độ phủ (`coverage_72h`) đo crawler có mặt bao nhiêu phần trong 72 giờ đầu của **chính video đó**.
 - Độ phủ thấp thì nhãn 0 không đáng tin, nên loại video đó.
 - Video nhãn 1 có độ phủ thấp **cũng phải loại theo**. Tỉ lệ = trending / tổng, mà các nhãn 0 cùng hoàn cảnh đã bị loại khỏi mẫu số. Nếu giữ riêng nhãn 1 thì tỉ lệ bị thổi lên giả tạo. Ví dụ: tuần máy tắt có 100 video, 1 video trending được chụp, 99 video kia bị loại vì độ phủ thấp. Nếu giữ video trending thì tỉ lệ thành 1/1 = 100%.
 - Chỉ khi **mô tả** video trending (danh mục nào, dài bao lâu), không cần mẫu số, thì mới dùng mọi nhãn 1.
+- Hai nhãn có **hai tập sạch riêng**: `is_clean` (độ phủ chart chính ≥ 0,6) cho `is_trending_main`, `is_clean_category` (độ phủ chart danh mục ≥ 0,3) cho `is_trending_category`. Hai chart chạy theo lịch khác nhau nên crawler "có mặt" ở những giờ khác nhau (P15).
 
 ---
 
@@ -289,8 +290,8 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
 - **Đã thử và bỏ:** cờ `flag_crawl_gap` (gắn cho video có cửa sổ 72 giờ chạm một khoảng gián đoạn trên 3 giờ). Cờ này dính **cả 146.057 video**, nên vô dụng.
 - **Cách giải.** Đo **độ phủ** thay vì đánh dấu gián đoạn:
   - `coverage_24h`, `coverage_72h` = tỉ lệ số giờ có lần chụp chart chính trong 24 giờ / 72 giờ đầu sau `release_at`.
-  - Ngưỡng **0,6**.
-- **Cài đặt.** `features.sql` (CTE `run_hours`, `coverage`).
+  - Ngưỡng **0,6** (nhãn chính). Nhãn danh mục có độ phủ và ngưỡng riêng (0,3), xem mục "Độ phủ riêng cho chart danh mục" bên dưới.
+- **Cài đặt.** `features.sql` (CTE `run_hours`, `coverage`; `category_runs`, `coverage_cat` cho chart danh mục).
 - **Kết quả, phân tích độ nhạy:**
 
   | Ngưỡng độ phủ | Số video | Giờ hành chính | Giờ nghỉ | Giờ nghỉ / giờ hành chính |
@@ -313,12 +314,48 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
 - **Vì sao chọn 0,6:** cân bằng giữa độ tin cậy nhãn và cỡ mẫu (0,8 chỉ còn khoảng 190 positive). Đây là ngưỡng **chọn theo kinh nghiệm**, được bảo vệ bằng bảng độ nhạy ở trên, không phải ngưỡng tối ưu theo công thức.
 - **Hạn chế.**
   - Lọc theo độ phủ **làm thay đổi thành phần mẫu**: chỉ những ngày crawler chạy tốt được giữ lại. Ví dụ, tập sạch lệch mạnh về thứ 2 (phát hiện ở EDA cũ, cần kiểm tra lại khi làm EDA mới).
-  - **Nghi lỗi:** nhãn `is_trending_category` cũng dùng độ phủ của chart **chính** (`run_hours` chỉ lấy `source = 'main'`), trong khi chart danh mục chạy lịch riêng mỗi 3 giờ. Ở ngưỡng 0,7 số category tụt từ 517 xuống 69. Cần độ phủ riêng cho chart danh mục (xem kế hoạch cuối file).
+  - ~~Nghi lỗi: nhãn `is_trending_category` cũng dùng độ phủ của chart chính.~~ **Đã sửa 01/11**, xem mục dưới.
+
+### Độ phủ riêng cho chart danh mục (01/11)
+
+- **Vấn đề.** Trước 01/11, nhãn danh mục bị lọc theo độ phủ của chart **chính** (`run_hours` chỉ lấy `source = 'main'`). Chart danh mục chạy lịch riêng (job `trending_category`, mỗi 3 giờ từ 09/10), nên crawler "có mặt" với chart danh mục ở những giờ khác. Ở ngưỡng 0,7, số trending danh mục tụt từ 517 xuống 69.
+- **Dữ liệu chart danh mục.** Chỉ **52 lần chụp trong 15 ngày** (09/10–24/10), tối đa 7 lần/ngày trên 8 lần theo lịch; 16–18/10 và 22/10 không có lần nào. 9 lần chạy chỉ chụp được 1–5 danh mục thay vì đủ 12.
+- **Cách giải.**
+  - Đếm theo **ô 3 giờ** kể từ `release_at` (khớp nhịp chạy của job): `coverage_cat_24h` = số ô có chụp / 8, `coverage_cat_72h` = số ô có chụp / 24. Nếu đếm theo giờ như chart chính thì độ phủ tối đa chỉ khoảng 0,33.
+  - Chỉ tính lần chụp có **đúng danh mục của video**, vì lần chạy dở dang không quan sát các danh mục còn lại.
+  - Tập sạch riêng `is_clean_category`: video có nhãn danh mục (không `NULL`), qua các cờ khác, và cả hai độ phủ danh mục ≥ **0,3**. Cột `is_clean` (nhãn chính) giữ nguyên.
+- **Vì sao 0,3, không phải 0,6.** Độ phủ danh mục cao nhất chỉ đạt **0,708**; ngưỡng 0,6 còn 520 video và 12 nhãn 1. Tỉ lệ trending theo độ phủ cho thấy nhãn 0 đáng tin từ khoảng 0,2 (tỉ lệ đi ngang):
+
+  | Độ phủ danh mục 72h | Số video | Tỉ lệ trending danh mục |
+  |---|---:|---:|
+  | 0–0,08 | 20.302 | 1,11% |
+  | 0,13–0,17 | 11.872 | 2,12% |
+  | 0,21–0,29 | 10.175 | 3,17% |
+  | 0,33–0,38 | 2.734 | 3,55% |
+  | 0,42–0,50 | 37.113 | 3,35% |
+  | 0,54–0,58 | 9.452 | 3,00% |
+
+  Khác với chart chính (tỉ lệ tăng mãi, không có điểm dừng), ở đây có đoạn đi ngang. Có thể vì video ở lại chart danh mục lâu, nên chụp thưa vẫn bắt được. 0,3 = ít nhất 3/8 ô trong 24 giờ đầu và 8/24 ô trong 72 giờ (0,3 và 0,33 cho cùng kết quả vì độ phủ chỉ nhận giá trị k/8, k/24).
+
+- **Bảng độ nhạy (giữ các cờ khác, chỉ đổi ngưỡng độ phủ danh mục):**
+
+  | Ngưỡng | Số video | Nhãn 1 | % hành chính | % nghỉ | Nghỉ / hành chính |
+  |---|---:|---:|---:|---:|---:|
+  | 0 | 92.444 | 2.441 | 2,05 | 2,89 | 1,41 |
+  | 0,2 | 51.515 | 1.697 | 2,95 | 3,44 | 1,17 |
+  | 0,25 | 47.941 | 1.580 | 3,00 | 3,42 | 1,14 |
+  | **0,3** | **39.669** | **1.283** | **2,99** | **3,34** | **1,12** |
+  | 0,4 | 20.018 | 643 | 3,05 | 3,32 | 1,09 |
+  | 0,5 | 9.434 | 296 | 3,31 | 2,91 | 0,88 |
+  | 0,6 | 520 | 12 | 2,20 | 2,48 | 1,13 |
+
+- **Ý nghĩa.** Với nhãn danh mục, giờ nghỉ chỉ nhỉnh hơn giờ hành chính khoảng 1,1 lần, và ở ngưỡng 0,5 còn đảo chiều. Với nhãn chính là khoảng 2 lần ở mọi ngưỡng. "Thời điểm vàng" rõ với top chung, mờ với top theo danh mục; EDA phân tích riêng từng nhãn.
+- **Kiểm chứng.** Sau khi thêm, số của nhãn chính khớp tuyệt đối với baseline 30/10 (40.531 / 398; hành chính 88, nghỉ 310; tổng `coverage_72h` 78.934,394).
 
 ## P16. Cờ làm sạch và tập `is_clean`
 
 - **Vấn đề.** Cần một tập dữ liệu chính rõ ràng. Nhưng không được xoá dữ liệu gốc, để còn so sánh có lọc và không lọc.
-- **Cách giải.** Chỉ **gắn cờ**, không xoá dòng. `is_clean` = không dính cờ nào.
+- **Cách giải.** Chỉ **gắn cờ**, không xoá dòng. `is_clean` = không dính cờ nào (dùng cho nhãn chính). `is_clean_category` = không dính 3 cờ đầu và `flag_low_coverage_cat`, đồng thời có nhãn danh mục (dùng cho nhãn danh mục).
 
   | Cờ | Điều kiện | Số video (23/10) |
   |---|---|---:|
@@ -326,12 +363,25 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
   | `flag_hidden_subs` | Kênh ẩn số subscriber | 0 |
   | `flag_extreme_duration` | Thời lượng > 3 giờ | 1.819 |
   | `flag_low_coverage` | `coverage_24h` < 0,6 hoặc `coverage_72h` < 0,6 | ≈ 105.000 |
+  | `flag_low_coverage_cat` (01/11) | `coverage_cat_24h` < 0,3 hoặc `coverage_cat_72h` < 0,3 | 112.553 (53.378 trong số video có nhãn danh mục) |
 
 - **Cài đặt.** `features.sql`.
 - **Kết quả.**
   - 146.057 → **40.307 video sạch** (28%), trong đó **397 video trending chính**.
   - Giờ hành chính 14.071 video (34,9%); giờ nghỉ 26.236 video (65,1%).
   - **30/10:** 156.311 → **40.531 video sạch**, 398 trending chính, 517 trending danh mục. Hành chính 14.253 (88 main); nghỉ 26.278 (310 main). Không đổi sau khi nạp JP/US.
+  - **01/11 (tập sạch riêng cho từng nhãn):**
+
+    | Tập | Khung giờ | Số video | Nhãn 1 | Tỉ lệ |
+    |---|---|---:|---:|---:|
+    | `is_clean` (nhãn chính) | Hành chính | 14.253 | 88 | 0,617% |
+    | | Nghỉ | 26.278 | 310 | 1,180% |
+    | | **Tổng** | **40.531** | **398** | 0,982% |
+    | `is_clean_category` (nhãn danh mục) | Hành chính | 11.736 | 351 | 2,991% |
+    | | Nghỉ | 27.933 | 932 | 3,337% |
+    | | **Tổng** | **39.669** | **1.283** | 3,234% |
+
+    Hai tập chỉ trùng 14.765 video, nên mỗi nhãn được phân tích trên tập sạch của chính nó.
 
 ## P17. Kiểm tra chất lượng dữ liệu bằng SQL
 
@@ -403,7 +453,7 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
   - **Không** thêm vào `videos`, `channels`, `categories`, `playlist_items`. Đây là metadata chung, mỗi video/kênh chỉ có 1 dòng (bản mới nhất).
   - **`region_code` = khu vực của crawler đã thu thập**, không phải quốc gia của kênh (`channels.country`). Kênh VN mà discover của máy JP tìm ra vẫn tính là JP.
   - Vùng lấy từ **tên máy crawl** trong tên file, tra bảng `crawler_regions` trong `configs/db_config.json`. Lý do: chỉ file `trending`, `trending_category`, `discover/search` có `regionCode` trong request, còn file `uploads`, `stats`, `channels` thì không.
-  - Mọi view trong `labels.sql` / `features.sql` lọc `region_code = 'VN'` (7 chỗ): `v_videos_analysis`, `v_stats_analysis`, `v_trending_rank`, `crawl_range` và join `uploads` của `v_cohort`, `category_range`, `run_hours`.
+  - Mọi view trong `labels.sql` / `features.sql` lọc `region_code = 'VN'` (8 chỗ): `v_videos_analysis`, `v_stats_analysis`, `v_trending_rank`, `crawl_range` và join `uploads` của `v_cohort`, `category_range`, `run_hours`, `category_runs` (thêm 01/11).
 - **Cài đặt.**
   - `schema.sql`: `ADD COLUMN IF NOT EXISTS region_code ... DEFAULT 'VN'` (dữ liệu cũ đều là VN, **không phải nạp lại**), rồi **bỏ DEFAULT**: loader quên gán vùng sẽ lỗi `NOT NULL` thay vì âm thầm thành VN. Khoá chính mới là `pk_video_sources`, `pk_video_stats`, `pk_trending_snapshots`.
   - `cleaner.py`: `parse_key()` trả thêm `region_code`. Có 2 chốt an toàn:
@@ -445,15 +495,17 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
 
 ## Kế hoạch từ đây tới EDA
 
-Tập phân tích VN đã chốt (30/10): cohort 156.311, `is_clean` 40.531, trong đó 398 trending chính và 517 trending danh mục. EDA cũ (Report 3, số liệu 23/10) **bỏ, làm lại** trên dữ liệu này. Mỗi bước làm xong thì dừng để giải thích và duyệt.
+Tập phân tích VN đã chốt (01/11): cohort 156.311; nhãn chính `is_clean` 40.531 video, 398 trending; nhãn danh mục `is_clean_category` 39.669 video, 1.283 trending. EDA cũ (Report 3, số liệu 23/10) **bỏ, làm lại** trên dữ liệu này. Mỗi bước làm xong thì dừng để giải thích và duyệt.
+
+**Đã chốt 01/11:** dữ liệu dừng ở lần chụp cuối 24/10, không crawl thêm; ngưỡng độ phủ 0,6 cho nhãn chính, 0,3 cho nhãn danh mục; đóng băng tập phân tích bằng CSV.
 
 | # | Bước | Vì sao | Sản phẩm |
 |---|---|---|---|
-| 1 | **Độ phủ riêng cho chart danh mục** (`coverage_cat_*` trong `features.sql`, tính trên `source = 'category'`); `is_clean` cho nhãn danh mục dùng độ phủ này | Hiện nhãn danh mục bị lọc theo lịch của chart **chính** (P15, nghi lỗi) | View mới; bảng độ nhạy cho nhãn danh mục |
-| 2 | **Chốt ngưỡng độ phủ** cho từng nhãn bằng bảng độ nhạy (0 / 0,4 / 0,5 / 0,6 / 0,7) | Ngưỡng 0,6 là lựa chọn kinh nghiệm, phải có bằng chứng | Bảng trong notebook 1 + một đoạn lý do |
-| 3 | **Đóng băng tập phân tích**: materialized view hoặc bảng snapshot `v_video_features` mốc 30/10 | View mất 35 giây mỗi lần đọc; nạp thêm dữ liệu sẽ làm số EDA trôi | `mv_video_features` (REFRESH khi chủ động) |
+| 1 | ✅ **Độ phủ riêng cho chart danh mục** (`coverage_cat_*`, `is_clean_category` trong `features.sql`) | Nhãn danh mục bị lọc theo lịch của chart **chính** (P15) | Xong 01/11, xem P15 |
+| 2 | ✅ **Chốt ngưỡng độ phủ** cho từng nhãn bằng bảng độ nhạy | Ngưỡng phải có bằng chứng | Nhãn chính 0,6; nhãn danh mục 0,3 (P15) |
+| 3 | **Đóng băng tập phân tích**: xuất `v_video_features` ra CSV (bản đầy đủ không commit, chỉ commit mẫu trong `data/processed/`) | View mất khoảng 17–35 giây mỗi lần đọc; số EDA không được trôi | CSV mốc 01/11 |
 | 4 | **Sửa chỗ đọc thẳng bảng**: notebook 1 cell 16 đọc `trending_snapshots` mà không lọc vùng (Rmd mới viết từ đầu phải lọc `region_code = 'VN'`) | Sau khi gộp sẽ lẫn giờ chụp JP/US | Thêm `region_code = 'VN'` |
 | 5 | **Chạy lại notebook làm sạch** (`1_Exploration.ipynb`) | Minh chứng làm sạch phải khớp số mới | Notebook chạy từ đầu, số 30/10 |
-| 6 | **Data dictionary** (`src/utils/data_dictionary.py`) | Report 3 yêu cầu; có thêm `region_code`, định nghĩa "khu vực thu thập" | `reports/data_dictionary.md` |
-| 7 | **EDA lại từ đầu** (`3_EDA.Rmd`): tổng quan → phân phối → quan hệ với nhãn → kiểm soát nhiễu (danh mục, quy mô kênh, thời lượng) → chân dung video trending → kết luận | Câu hỏi "thời điểm vàng" trên dữ liệu đã chốt | `3_EDA.html` |
+| 6 | **Data dictionary**: mô tả từng cột của `v_video_features` (kiểu, ý nghĩa, cách tính, khi nào `NULL`); 9 bảng gốc mỗi bảng 7–10 dòng | Report 3 yêu cầu; có thêm `region_code`, định nghĩa "khu vực thu thập" | `reports/data_dictionary.md` |
+| 7 | **EDA lại từ đầu** (`3_EDA.Rmd`), mỗi nhãn trên tập sạch riêng: A. tổng quan và độ lệch của tập sạch → B. phân phối → C. tỉ lệ trending theo thời điểm (kèm khoảng tin cậy Wilson) → D. kiểm soát nhiễu (quy mô kênh, danh mục, thời lượng, ảnh hưởng của vài kênh lớn) → E. chân dung video trending → F. nhãn danh mục → I. kết luận và đề xuất cho Report 4 | Câu hỏi "thời điểm vàng" trên dữ liệu đã chốt | `3_EDA.html`, `docs/analysis/03_eda.md` |
 | 8 | (Tuỳ chọn) **So sánh mô tả JP/US**: chỉ dùng video **từng trending**, giờ đăng theo giờ địa phương (JP `Asia/Tokyo`; US chốt `America/New_York`) | Dữ liệu JP/US không tính được tỉ lệ (P20) | Một mục phụ trong EDA |
