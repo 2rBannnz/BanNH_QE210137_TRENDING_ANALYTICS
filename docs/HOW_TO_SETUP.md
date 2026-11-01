@@ -5,8 +5,8 @@ Tài liệu dành cho người cài đặt, chạy và bảo trì hệ thống t
 Luồng dữ liệu:
 
 ```
-YouTube Data API v3 ──crawler──▶ MinIO (raw JSON) ──loader──▶ PostgreSQL (bảng + view) ──▶ phân tích
-   src/ingestion/crawler.py          bucket youtube-raw    src/processing/cleaner.py   configs/*.sql
+YouTube Data API v3 ──crawler──▶ MinIO (raw JSON) ──loader──▶ PostgreSQL (bảng + view) ──▶ CSV đóng băng ──▶ EDA (RStudio)
+   src/ingestion/crawler.py          bucket youtube-raw    src/processing/cleaner.py   configs/*.sql    notebooks/3_EDA.Rmd
 ```
 
 ## 1. Cài đặt lần đầu
@@ -30,13 +30,15 @@ YouTube Data API v3 ──crawler──▶ MinIO (raw JSON) ──loader──�
    | Biến | Bắt buộc | Ghi chú |
    |---|---|---|
    | `YOUTUBE_API_KEY` | ✅ | Không commit |
-   | `CRAWLER_ID` | ✅ | Định danh máy crawl: chữ thường, số, `_` hoặc `-` (ví dụ `ban`). Có trong tên file raw |
+   | `REGION_CODE` | | Khu vực crawl, mặc định `VN` |
+   | `CRAWLER_ID` | ✅ | Định danh máy crawl: chữ thường, số, `_` hoặc `-` (ví dụ `ban`). Có trong tên file raw. Máy mới phải được khai báo trong `crawler_regions` của `configs/db_config.json` (mục 4.3) |
    | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | ✅ | Mật khẩu tối thiểu 8 ký tự |
    | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | ✅ | `POSTGRES_DB=youtube_trending_db` |
    | `POSTGRES_HOST`, `POSTGRES_PORT` | | Chạy trên máy: `localhost` / `5432`. Container `app` tự đổi thành `postgres` |
    | `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` | ✅ | Đăng nhập pgAdmin |
    | `QUOTA_DAILY_BUDGET`, `QUOTA_CORE_RESERVE` | | Mặc định 9500 / 2500 (mục 3) |
    | `SAVE_LOCAL_COPY`, `LOCAL_DATA_DIR` | | Mặc định `true` / `data` (mục 4.3) |
+   | `RSTUDIO_PASSWORD` | | Mật khẩu RStudio, user `rstudio` (mục 5.4) |
 
 2. Cài thư viện Python. Có thể dùng `start.bat`: file này chạy `uv sync` rồi mở cmd đã kích hoạt `.venv`.
 
@@ -74,6 +76,7 @@ Luôn đứng ở **thư mục gốc repo** và chạy bằng `python -m ...`. K
 | MinIO API | `localhost:9000` | |
 | PostgreSQL | `localhost:5432` | `POSTGRES_USER` / `POSTGRES_PASSWORD` |
 | pgAdmin | http://localhost:5050 | `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` |
+| RStudio | http://localhost:8787 | `rstudio` / `RSTUDIO_PASSWORD` |
 
 Kết nối pgAdmin tới DB lần đầu:
 1. Chuột phải **Servers**, chọn **Register → Server**.
@@ -112,6 +115,8 @@ Các tác vụ nằm trong thư mục `\ADY201m\` của Task Scheduler:
 | Uploads | `src.ingestion.crawler --job channels uploads` | 09:00 và 21:00 | `channels` phải chạy trước `uploads` để kênh mới vào cohort |
 | Mở rộng dữ liệu | `src.ingestion.crawler --job discover backfill` | 14:30 | Ngay sau khi quota reset |
 | **Nap DB** | `src.processing.cleaner --source minio --recent-days 2` | Mỗi 3 giờ, phút :50 | ~15 giây/lần; log ở `logs/load_db.log` |
+
+**Trạng thái 01/11/2026:** đã dừng thu thập sau lần chụp ngày 24/10; cả 6 tác vụ đang ở trạng thái Disabled để số liệu phân tích không trôi. Bật lại trong Task Scheduler nếu cần crawl thêm (cohort, nhãn và tập sạch sẽ thay đổi).
 
 Tác vụ "Mở rộng dữ liệu" tự đi đúng trình tự nhờ ngân sách quota. Những ngày đầu, `discover` dùng phần lớn quota dành cho job nặng. Khi đủ 2.500 kênh hoặc hết từ khoá, `backfill` nhận phần quota còn lại. Không cần đổi lệnh theo ngày.
 
@@ -231,7 +236,16 @@ Xoá `state/` thì code vẫn chạy lại được, chỉ tốn thêm quota đ�
 - `python -m src.utils.sync_local`: tải về `data/raw/` những file có trên MinIO nhưng chưa có bản local. Chạy lại bao nhiêu lần cũng an toàn.
 - `python -m src.utils.sync_state`: tải `state/` về `data/state/` để xem hoặc sao lưu. Crawler luôn đọc state từ MinIO, nên sửa bản local không có tác dụng.
 - `python -m src.utils.data_stats`: thống kê nhanh bản local, gồm số file, số video và số lần chụp trending.
-- Gộp dữ liệu từ máy khác: dùng MinIO Client `mc mirror` sao chép `raw/` giữa hai MinIO. Tên file chứa `CRAWLER_ID` nên không bị đè. Sau khi gộp, chạy loader **không kèm** `--recent-days` để quét toàn bộ.
+- **Gộp dữ liệu từ máy khác** (thành viên crawl khu vực khác, 30/10):
+  1. Khai báo máy mới trong `configs/db_config.json`, mục `crawler_regions` (ví dụ `"duc": "JP"`). Loader **dừng** nếu gặp `CRAWLER_ID` chưa khai báo, để không gán nhầm khu vực.
+  2. Đưa file zip raw của thành viên lên MinIO, giữ nguyên byte; file đã có thì bỏ qua:
+
+     ```bash
+     python -m src.utils.import_raw_zip <file.zip> [--dry-run]
+     ```
+
+  3. Chạy loader **không kèm** `--recent-days` để quét toàn bộ.
+  - Mỗi dòng của `trending_snapshots`, `video_sources`, `video_stats` có `region_code` = khu vực của máy đã crawl (không phải quốc gia của kênh). Mọi view phân tích chỉ dùng `region_code = 'VN'`.
 
 ## 5. Tầng processing (MinIO → PostgreSQL)
 
@@ -245,9 +259,10 @@ Xoá `state/` thì code vẫn chạy lại được, chỉ tốn thêm quota đ�
 | `--prefix raw/youtube/trending/` | Chỉ nạp một job hoặc một ngày |
 
 Mỗi lần chạy, loader:
-1. Chạy `configs/schema.sql` (bảng, khoá ngoại) và `configs/labels.sql` (view). Cả hai chạy lại vẫn an toàn.
-2. Bỏ qua file đã có trong bảng `raw_files`.
-3. Ghi mỗi lô 500 file trong một transaction.
+1. Chạy `configs/schema.sql` (bảng, khoá ngoại), `configs/labels.sql` và `configs/features.sql` (view). Cả ba chạy lại vẫn an toàn.
+2. Dừng nếu có file của máy crawl chưa khai báo trong `crawler_regions`.
+3. Bỏ qua file đã có trong bảng `raw_files`.
+4. Ghi mỗi lô 500 file trong một transaction.
 
 Vì vậy loader **chạy lại bao nhiêu lần cũng không trùng**, và chết giữa chừng thì lần sau làm tiếp.
 
@@ -257,14 +272,18 @@ Vì vậy loader **chạy lại bao nhiêu lần cũng không trùng**, và ch�
 |---|---|
 | `raw_files` | Nhật ký file đã nạp (lineage MinIO → DB) |
 | `channels`, `videos`, `categories` | Bản mới nhất. `channels.is_stub = true` là **kênh tạm**: video vào trước kênh, lần nạp `channels` sau sẽ điền đủ |
-| `video_stats`, `trending_snapshots` | Số liệu tại từng lần chụp; mỗi lần video có mặt trên bảng xếp hạng (`main` / `category`) |
-| `video_sources`, `playlist_items`, `discover_candidates` | Video thấy ở job nào; playlist của kênh; kênh ứng viên |
+| `video_stats`, `trending_snapshots` | Số liệu tại từng lần chụp; mỗi lần video có mặt trên bảng xếp hạng (`main` / `category`). Có cột `region_code` |
+| `video_sources`, `playlist_items`, `discover_candidates` | Video thấy ở job nào (có `region_code`); playlist của kênh; kênh ứng viên |
 
 | View | Nội dung |
 |---|---|
 | `v_videos_analysis`, `v_stats_analysis` | Dữ liệu dùng cho phân tích: **bỏ backfill** và bỏ video của kênh tạm |
+| `v_trending_rank` | Thứ hạng liên tục trong từng lần chụp chart |
 | `v_cohort` | Video mới (job `uploads`) được theo dõi đủ 72 giờ |
-| `v_video_labels` | **Bảng chính để phân tích/mô hình**: feature + 2 nhãn `is_trending_main`, `is_trending_category` (cửa sổ 72 giờ từ `release_at`) |
+| `v_video_labels` | Feature cơ bản + 2 nhãn `is_trending_main`, `is_trending_category` (cửa sổ 72 giờ từ `release_at`) |
+| `v_video_features` | **Bảng chính để phân tích/mô hình**: thêm khung giờ, biến kiểm soát, độ phủ crawler, cờ làm sạch, `is_clean` (nhãn chính) và `is_clean_category` (nhãn danh mục) |
+
+Mọi view chỉ dùng dữ liệu máy crawl VN. Ý nghĩa từng cột: [`reports/data_dictionary.md`](../reports/data_dictionary.md).
 
 ### 5.3. Kiểm tra dữ liệu
 
@@ -272,7 +291,23 @@ Vì vậy loader **chạy lại bao nhiêu lần cũng không trùng**, và ch�
 docker exec -i ady201m_postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < configs/checks.sql
 ```
 
-Kết quả mong đợi: các check có nhãn `[LỖI]` (trùng khoá, vi phạm khoá ngoại) đều bằng 0.
+Kết quả mong đợi: các check có nhãn `[LỖI]` (trùng khoá, vi phạm khoá ngoại) đều bằng 0. Check 6 tách theo khu vực: máy US có lượt chạy dài (~7 giờ) nên có dòng lệch ≥ 1 giờ, đã giải thích ở check 6b.
+
+### 5.4. Đóng băng tập phân tích và EDA
+
+EDA đọc bản CSV đóng băng thay vì đọc view (view mất 1–2 phút mỗi lần đọc; số liệu không được trôi khi DB thay đổi). Xuất lại khi cần:
+
+```bash
+docker exec -i ady201m_postgres sh -c 'PGOPTIONS="-c timezone=UTC -c max_parallel_workers_per_gather=0" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\copy (SELECT * FROM v_video_features ORDER BY video_id) TO STDOUT WITH (FORMAT csv, HEADER)"' > data/processed/video_features_full_<ngày>.csv
+```
+
+File `data/processed/*_full_*.csv` bị `.gitignore` chặn; repo chỉ giữ mẫu `video_features_sample.csv` (xuất từ `notebooks/1_Exploration.ipynb`).
+
+Knit EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (http://localhost:8787) rồi bấm Knit, hoặc chạy từ máy (Git Bash cần `MSYS_NO_PATHCONV=1` để không đổi đường dẫn):
+
+```bash
+MSYS_NO_PATHCONV=1 docker exec -w /home/rstudio/project/notebooks ady201m_rstudio Rscript -e 'rmarkdown::render("3_EDA.Rmd")'
+```
 
 ## 6. Theo dõi hằng ngày
 
@@ -310,6 +345,8 @@ Get-ScheduledTask -TaskPath '\ADY201m\' | Get-ScheduledTaskInfo | Select TaskNam
 | `MaxRetryError` / `Connection refused` cổng 9000 | MinIO chưa chạy hoặc sai `MINIO_ENDPOINT` | `docker compose ps`; cổng 9000 là API, 9001 là Console |
 | `connection to server at "localhost" ... port 5432 failed` | Docker Desktop hoặc container Postgres chưa chạy | Mở Docker Desktop; `docker compose up -d postgres` |
 | `failed to connect to the docker API at npipe://...` | Docker Desktop đang tắt | Mở Docker Desktop |
+| `Crawler chưa khai báo trong crawler_regions` | File raw của máy crawl mới | Thêm máy đó vào `crawler_regions` trong `configs/db_config.json` (mục 4.3) |
+| `OCI runtime exec failed: ... Cwd must be an absolute path` | Git Bash đổi đường dẫn `/home/...` trong `docker exec -w` | Thêm `MSYS_NO_PATHCONV=1` trước lệnh |
 | `InvalidAccessKeyId` / `SignatureDoesNotMatch` | User/password MinIO trong `.env` khác với container | Sửa `.env` cho khớp |
 | MinIO liên tục khởi động lại | `MINIO_ROOT_PASSWORD` ngắn hơn 8 ký tự | Đổi mật khẩu dài hơn |
 | `API key not valid` (400) | Sai API key | Lấy lại key từ Google Cloud Console |
