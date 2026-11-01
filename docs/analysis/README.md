@@ -15,7 +15,7 @@ Tài liệu chia toàn bộ công việc hiện có của đồ án thành **3 p
 |---|---|---|
 | 1 — Crawl | [01_crawl.md](01_crawl.md) | YouTube Data API → MinIO (raw JSON) |
 | 2 — Làm sạch | [02_cleaning.md](02_cleaning.md) | MinIO → PostgreSQL → bảng phân tích sạch `v_video_features` |
-| 3 — EDA | (đang làm lại) | Phân tích khám phá trên RStudio, trả lời câu hỏi "thời điểm vàng" |
+| 3 — EDA | [03_eda.md](03_eda.md) | Bảng phân tích (bản đóng băng CSV) → RStudio, trả lời câu hỏi "thời điểm vàng" |
 
 **Mốc số liệu:**
 - Dữ liệu thu thập từ 24/09/2026. Crawler dừng sau lần chụp lúc 06:00 ngày 24/10.
@@ -94,9 +94,23 @@ Bảng dữ liệu đích: **mỗi dòng là 1 video mới đăng**. Mỗi dòng
 | P21 | Đưa raw của thành viên lên MinIO | `src/utils/import_raw_zip.py` |
 | P22 | Ảnh hưởng chéo qua bảng dùng chung | `videos`, `channels` |
 
-### Phần 3 — EDA
+### Phần 3 — EDA ([chi tiết](03_eda.md))
 
-**Đã xoá bản cũ (31/10)**: `notebooks/3_EDA.Rmd`, `3_EDA.html`, `docs/analysis/03_eda.md` (số liệu 23/10). Bản lưu nằm ở `snapshots/report3_v1_2026-10-23/` (local, không push). EDA làm lại trên tập dữ liệu 30/10 theo kế hoạch cuối [02_cleaning.md](02_cleaning.md#kế-hoạch-từ-đây-tới-eda).
+Làm lại 01/11 trên bản đóng băng (bản cũ 23/10 đã bỏ). Notebook: `notebooks/3_EDA.Rmd` → `3_EDA.html`.
+
+| ID | Bài toán | Mục trong Rmd |
+|---|---|---|
+| E1 | Tập sạch có còn đại diện cho cohort không | A |
+| E2 | Phân phối từng biến | B |
+| E3 | Tỉ lệ trending theo giờ đăng | C1 |
+| E4 | Giờ hành chính hay giờ nghỉ | C2, C3 |
+| E5 | Tỉ lệ nền thay đổi theo ngày | C4 |
+| E6 | Độ vững theo ngưỡng độ phủ | C5 |
+| E7 | Kiểm soát nhiễu (Mantel–Haenszel, bootstrap theo kênh) | D1–D3, D5 |
+| E8 | Ảnh hưởng của vài kênh lớn | D4 |
+| E9 | Chân dung video trending | E |
+| E10 | Nhãn danh mục | F |
+| E11 | Kết luận và đề xuất cho Report 4 | I |
 
 ---
 
@@ -104,7 +118,7 @@ Bảng dữ liệu đích: **mỗi dòng là 1 video mới đăng**. Mỗi dòng
 
 1. **Phần 1:** thu được 165.393 file raw (9,32 GB) của máy VN. Nhưng crawler chạy trên máy cá nhân nên **chỉ khoảng 50% số giờ có lần chụp trending**, ít nhất vào 10–13h. Đây là điểm yếu lớn nhất của dữ liệu. Ngày 30/10 gộp thêm 65.179 file của máy JP và US (P20–P21).
 2. **Phần 2:** biến điểm yếu đó thành **cột đo được** (`coverage_24h`, `coverage_72h`; chart danh mục có `coverage_cat_*` riêng) và lọc theo ngưỡng 0,6 cho nhãn chính, 0,3 cho nhãn danh mục. Mốc 01/11: cohort VN 156.311 video còn **40.531 video sạch cho nhãn chính (398 trending)** và **39.669 video sạch cho nhãn danh mục (1.283 trending)**.
-3. **Phần 3:** đang làm lại.
+3. **Phần 3:** với **chart chính**, đăng ngoài giờ hành chính (rõ nhất 16–18h ngày thường) dễ lọt trending hơn: thô gấp 1,9 lần, sau khi kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần**, thêm thời lượng còn khoảng 1,25 lần. Với **chart danh mục** không có khác biệt. **Loại video** (dài, không Shorts, không tin tức) quan trọng hơn giờ đăng nhiều.
 
 ## Điểm lệch giữa tài liệu cũ và code hiện tại
 

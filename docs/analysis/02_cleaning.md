@@ -1,6 +1,6 @@
 # Phần 2 — Làm sạch: MinIO → PostgreSQL → bảng phân tích sạch
 
-[← Phần 1 — Crawl](01_crawl.md) · [Tổng quan](README.md) · Phần 3 — EDA (đang làm lại)
+[← Phần 1 — Crawl](01_crawl.md) · [Tổng quan](README.md) · [Phần 3 — EDA →](03_eda.md)
 
 **Mục tiêu của phần:** biến toàn bộ file JSON thô (241.202 file của 3 máy crawl VN / JP / US, mốc 30/10) thành **một bảng phân tích sạch** (`v_video_features`): mỗi dòng là 1 video **VN**, có giờ ra mắt đúng, có 2 nhãn trending, có biến kiểm soát và cờ chất lượng. Dữ liệu JP/US nằm cùng DB nhưng không vào bảng phân tích (P20).
 
@@ -300,15 +300,17 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
   | 0,6 | 41.081 | 0,80% | 1,31% | 1,64 |
   | 0,8 | 11.590 | 1,36% | 1,88% | 1,38 |
 
-- **Phân tích độ nhạy lại (30/10, giữ các cờ khác, chỉ đổi ngưỡng):**
+- **Phân tích độ nhạy lại (giữ các cờ khác, chỉ đổi ngưỡng; notebook 1 mục 6, chạy lại 01/11):**
 
-  | Ngưỡng | Số video | Main | Category | % main hành chính | % main nghỉ | Nghỉ / hành chính |
-  |---|---:|---:|---:|---:|---:|---:|
-  | 0 | 154.025 | 884 | 2.440 | 0,322 | 0,699 | 2,2 |
-  | 0,4 | 98.266 | 703 | 1.313 | 0,402 | 0,905 | 2,3 |
-  | 0,5 | 77.895 | 622 | 950 | 0,452 | 0,986 | 2,2 |
-  | **0,6** | 40.531 | 398 | 517 | 0,617 | 1,180 | 1,9 |
-  | 0,7 | 20.586 | 276 | 69 | 0,853 | 1,730 | 2,0 |
+  | Ngưỡng | Số video | Trending chính | % hành chính | % nghỉ | Nghỉ / hành chính |
+  |---|---:|---:|---:|---:|---:|
+  | 0 | 154.194 | 885 | 0,322 | 0,699 | 2,17 |
+  | 0,4 | 98.434 | 704 | 0,402 | 0,904 | 2,25 |
+  | 0,5 | 77.895 | 622 | 0,452 | 0,986 | 2,18 |
+  | **0,6** | 40.531 | 398 | 0,617 | 1,180 | 1,91 |
+  | 0,7 | 20.586 | 276 | 0,853 | 1,730 | 2,03 |
+
+  Bảng ghi 30/10 lệch nhẹ ở 2 dòng đầu (154.025 / 884 và 98.266 / 703); số trên đã kiểm lại bằng SQL. Cột trending danh mục của bảng cũ đã bỏ, vì nhãn danh mục giờ dùng độ phủ riêng (mục bên dưới).
 
   Ngưỡng cao thì **số** nhãn 1 giảm (video trending rơi vào giai đoạn crawler vắng cũng bị loại), nhưng **tỉ lệ** tăng (nhãn 0 sai bị loại nhiều hơn). Chênh lệch nghỉ / hành chính khoảng 2 lần ở mọi ngưỡng.
 - **Vì sao chọn 0,6:** cân bằng giữa độ tin cậy nhãn và cỡ mẫu (0,8 chỉ còn khoảng 190 positive). Đây là ngưỡng **chọn theo kinh nghiệm**, được bảo vệ bằng bảng độ nhạy ở trên, không phải ngưỡng tối ưu theo công thức.
@@ -503,9 +505,9 @@ Tập phân tích VN đã chốt (01/11): cohort 156.311; nhãn chính `is_clean
 |---|---|---|---|
 | 1 | ✅ **Độ phủ riêng cho chart danh mục** (`coverage_cat_*`, `is_clean_category` trong `features.sql`) | Nhãn danh mục bị lọc theo lịch của chart **chính** (P15) | Xong 01/11, xem P15 |
 | 2 | ✅ **Chốt ngưỡng độ phủ** cho từng nhãn bằng bảng độ nhạy | Ngưỡng phải có bằng chứng | Nhãn chính 0,6; nhãn danh mục 0,3 (P15) |
-| 3 | **Đóng băng tập phân tích**: xuất `v_video_features` ra CSV (bản đầy đủ không commit, chỉ commit mẫu trong `data/processed/`) | View mất khoảng 17–35 giây mỗi lần đọc; số EDA không được trôi | CSV mốc 01/11 |
-| 4 | **Sửa chỗ đọc thẳng bảng**: notebook 1 cell 16 đọc `trending_snapshots` mà không lọc vùng (Rmd mới viết từ đầu phải lọc `region_code = 'VN'`) | Sau khi gộp sẽ lẫn giờ chụp JP/US | Thêm `region_code = 'VN'` |
-| 5 | **Chạy lại notebook làm sạch** (`1_Exploration.ipynb`) | Minh chứng làm sạch phải khớp số mới | Notebook chạy từ đầu, số 30/10 |
-| 6 | **Data dictionary**: mô tả từng cột của `v_video_features` (kiểu, ý nghĩa, cách tính, khi nào `NULL`); 9 bảng gốc mỗi bảng 7–10 dòng | Report 3 yêu cầu; có thêm `region_code`, định nghĩa "khu vực thu thập" | `reports/data_dictionary.md` |
-| 7 | **EDA lại từ đầu** (`3_EDA.Rmd`), mỗi nhãn trên tập sạch riêng: A. tổng quan và độ lệch của tập sạch → B. phân phối → C. tỉ lệ trending theo thời điểm (kèm khoảng tin cậy Wilson) → D. kiểm soát nhiễu (quy mô kênh, danh mục, thời lượng, ảnh hưởng của vài kênh lớn) → E. chân dung video trending → F. nhãn danh mục → I. kết luận và đề xuất cho Report 4 | Câu hỏi "thời điểm vàng" trên dữ liệu đã chốt | `3_EDA.html`, `docs/analysis/03_eda.md` |
+| 3 | ✅ **Đóng băng tập phân tích**: xuất `v_video_features` ra CSV (bản đầy đủ không commit, chỉ commit mẫu trong `data/processed/`) | View mất khoảng 17–90 giây mỗi lần đọc; số EDA không được trôi | `data/processed/video_features_full_2026-11-01.csv` (156.311 × 47, khớp DB) |
+| 4 | ✅ **Sửa chỗ đọc thẳng bảng**: notebook 1 cell 16 lọc `region_code = 'VN'` (Rmd mới viết từ đầu cũng phải lọc) | Sau khi gộp sẽ lẫn giờ chụp JP/US | Xong 01/11 |
+| 5 | ✅ **Chạy lại notebook làm sạch** (`1_Exploration.ipynb`), thêm mục 6b độ phủ danh mục | Minh chứng làm sạch phải khớp số mới | Notebook chạy từ đầu, số 01/11; mẫu 500 dòng 47 cột |
+| 6 | ✅ **Data dictionary**: từng cột của `v_video_features` (kiểu, ý nghĩa, cách tính, khi nào `NULL`, giá trị); 9 bảng gốc mỗi bảng 7–10 dòng; view trung gian | Report 3 yêu cầu; có `region_code`, định nghĩa "khu vực thu thập" | [`reports/data_dictionary.md`](../../reports/data_dictionary.md) |
+| 7 | ✅ (01/11: A–F và I xong, giải thích ở [03_eda.md](03_eda.md); G, H tuỳ chọn chưa làm) **EDA lại từ đầu** (`3_EDA.Rmd`), mỗi nhãn trên tập sạch riêng: A. tổng quan và độ lệch của tập sạch → B. phân phối → C. tỉ lệ trending theo thời điểm (kèm khoảng tin cậy Wilson) → D. kiểm soát nhiễu (quy mô kênh, danh mục, thời lượng, ảnh hưởng của vài kênh lớn) → E. chân dung video trending → F. nhãn danh mục → I. kết luận và đề xuất cho Report 4 | Câu hỏi "thời điểm vàng" trên dữ liệu đã chốt | `3_EDA.html`, `docs/analysis/03_eda.md` |
 | 8 | (Tuỳ chọn) **So sánh mô tả JP/US**: chỉ dùng video **từng trending**, giờ đăng theo giờ địa phương (JP `Asia/Tokyo`; US chốt `America/New_York`) | Dữ liệu JP/US không tính được tỉ lệ (P20) | Một mục phụ trong EDA |
