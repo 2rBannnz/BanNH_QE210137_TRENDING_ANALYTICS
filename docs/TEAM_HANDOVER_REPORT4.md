@@ -33,6 +33,13 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 - **Nhãn:** `is_trending_main`.
 - **Shorts** = `is_short` = video ≤ 3 phút (giới hạn của YouTube từ 15/10/2024). Đây là ước lượng theo thời lượng.
 
+**Cài thư viện (đã thêm vào repo):** `scikit-learn` là thư viện chung; `xgboost` nằm trong nhóm riêng `xgboost` của `pyproject.toml`, chỉ ai làm XGBoost mới cần cài. `requirements.txt` (image Docker `app`) có đủ cả hai.
+
+| Người | Lệnh sau khi `git pull` |
+|---|---|
+| BanNH, phat | `uv sync` |
+| duc | `uv sync --group xgboost` |
+
 ## 4. Feature (đã chốt)
 
 | Bộ | Feature | Ghi chú |
@@ -68,7 +75,7 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 | Người | Phần việc | Sản phẩm |
 |---|---|---|
 | **BanNH** | Quy tắc H₀ và feature (mục 2, 4: đã chốt). **Logistic Regression**: OR khung giờ với bộ A, B, C; CI bootstrap theo kênh; kiểm tra độ vững (nhóm "có khả năng trending" bỏ Shorts, Tin tức, Thể thao; nhãn chart danh mục trên `is_clean_category`). **Kết luận H₀**, ghép báo cáo và notebook | Phần LR và kết luận trong `2_Modeling.ipynb`; `docs/analysis/04_modeling.md`; `reports/Report_4_*.pdf` |
-| **phat** | **Làm trước, các bạn khác phụ thuộc:** thêm `scikit-learn`, `xgboost` vào `pyproject.toml` và `requirements.txt` (image `app` cài từ file này). Viết `src/modeling/model.py`: đọc CSV, lọc `is_clean`, dựng bộ A/B/C, chặn cột cấm, tách tập test theo mục 5 và ghi `test_channels.csv`, hàm chia fold, hàm tính đủ chỉ số mục 5, mô hình mốc. Sau đó: **Random Forest** (tinh chỉnh, so C và C bỏ thời gian, mức quan trọng của biến) | `model.py`, `test_channels.csv`; phần RF trong notebook; mục "Dữ liệu và phương pháp" của báo cáo |
+| **phat** | **Làm trước, các bạn khác phụ thuộc** (thư viện đã thêm sẵn, xem mục 3): viết `src/modeling/model.py`: đọc CSV, lọc `is_clean`, dựng bộ A/B/C, chặn cột cấm, tách tập test theo mục 5 và ghi `test_channels.csv`, hàm chia fold, hàm tính đủ chỉ số mục 5, mô hình mốc. Sau đó: **Random Forest** (tinh chỉnh, so C và C bỏ thời gian, mức quan trọng của biến) | `model.py`, `test_channels.csv`; phần RF trong notebook; mục "Dữ liệu và phương pháp" của báo cáo |
 | **duc** | **XGBoost** (tinh chỉnh, so C và C bỏ thời gian, permutation importance). **Bảng so sánh 5 dòng** (2 mốc, LR, RF, XGB) trên tập test. Kiểm tra phụ: train đợt 1 (25/09–05/10), test đợt 2 (10, 12, 19/10) | Phần XGB và so sánh trong notebook; mục "Đánh giá và so sánh" của báo cáo |
 
 ## 7. Thứ tự và mốc
@@ -76,7 +83,7 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 | # | Việc | Người | Cần có trước |
 |---|---|---|---|
 | 1 | Quy tắc H₀, feature, quy ước validation | BanNH | Xong (file này) |
-| 2 | Môi trường, `model.py`, `test_channels.csv` | phat | 1 |
+| 2 | `model.py`, `test_channels.csv` (thư viện đã có) | phat | 1 |
 | 3 | LR, RF, XGBoost chạy song song, cùng fold và cùng feature | 3 người | 2 |
 | 4 | Bảng so sánh trên tập test | duc | 3 |
 | 5 | Kết luận H₀, ghép notebook, `04_modeling.md`, báo cáo PDF | BanNH | 4 |
