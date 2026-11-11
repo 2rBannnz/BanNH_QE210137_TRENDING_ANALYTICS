@@ -82,13 +82,15 @@ SELECT
          ELSE '>10M' END                                                        AS subs_group,
     LOG(1 + l.channel_subscribers::NUMERIC)::DOUBLE PRECISION                   AS log10_subs,
     CASE WHEN l.duration_s IS NULL   THEN 'khong_ro'
-         WHEN l.duration_s <= 60     THEN '<=60s (Shorts)'
+         WHEN l.duration_s <= 60     THEN '<=60s'
          WHEN l.duration_s <= 180    THEN '61-180s'
          WHEN l.duration_s <= 600    THEN '3-10 phut'
          WHEN l.duration_s <= 1200   THEN '10-20 phut'
          WHEN l.duration_s <= 3600   THEN '20-60 phut'
          ELSE '>60 phut' END                                                    AS duration_group,
-    (l.duration_s <= 60)                                                        AS is_short,
+    -- Shorts dài tối đa 3 phút từ 15/10/2024 (trước đó 60 giây). API không cho biết video dọc hay ngang,
+    -- nên is_short chỉ là ước lượng theo thời lượng: video ngang <= 3 phút cũng bị tính vào.
+    (l.duration_s <= 180)                                                       AS is_short,
 
     -- ---------- Cờ làm sạch ----------
     -- Livestream chưa kết thúc: API trả thời lượng rỗng hoặc P0D (= 0 giây)

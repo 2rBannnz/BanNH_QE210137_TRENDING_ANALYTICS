@@ -172,8 +172,8 @@ Một dòng = **một video trong cohort VN**. Cột "Giá trị (01/11)" lấy 
 | `category_id` | integer | Mã danh mục video | Không | 15 danh mục |
 | `category_title` | text | Tên danh mục (từ `categories`) | Không | Nhiều nhất: Mọi người và Blog |
 | `duration_s` | integer | Thời lượng (giây) | Livestream chưa có thời lượng (0,02%) | Trung vị 73 giây |
-| `duration_group` | text | `<=60s (Shorts)`, `61-180s`, `3-10 phut`, `10-20 phut`, `20-60 phut`, `>60 phut`, `khong_ro` (NULL) | Không | 7 giá trị |
-| `is_short` | boolean | `duration_s ≤ 60` | `duration_s` NULL | |
+| `duration_group` | text | `<=60s`, `61-180s`, `3-10 phut`, `10-20 phut`, `20-60 phut`, `>60 phut`, `khong_ro` (NULL) | Không | 7 giá trị |
+| `is_short` | boolean | `duration_s ≤ 180` | `duration_s` NULL | Shorts dài tối đa 3 phút từ 15/10/2024 (trước đó 60 giây). Ước lượng theo thời lượng: API không cho biết video dọc hay ngang |
 | `live_broadcast_content` | text | Trạng thái phát lúc chụp cuối: `none`, `live`, `upcoming` | Không | |
 | `is_live_or_premiere` | boolean | Có `actual_start_time` (livestream hoặc premiere đã phát) | Không | true: 13.369 |
 | `definition` | text | `hd` / `sd` | Không | |
