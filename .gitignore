@@ -28,7 +28,13 @@ __pycache__/
 # ==========================================
 # Tránh push các file JSON thô cào về làm nặng Repository
 data/raw/*
+data/state/*
+data/state/
 !data/raw/.gitkeep
+# Mẫu raw nhỏ (mỗi job 1 file) để người chấm xem cấu trúc envelope
+!data/raw/sample/
+# Bản đóng băng đầy đủ của tập phân tích (~47 MB) — repo chỉ giữ file *_sample.csv
+data/processed/*_full_*.csv
 
 # File log ghi vết lịch sử cào
 logs/*.log
@@ -45,3 +51,16 @@ logs/*.log
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+#chore
+CLAUDE.md
+docs/SESSION_HANDOFF.md
+# Nhật ký làm việc nội bộ (không nộp)
+docs/REPORT2_WORKLOG.md
+docs/REPORT3_WORKLOG.md
+
+# Bản lưu nội bộ các phiên bản làm việc (không nộp)
+snapshots/
+
+# File tạm của Jupyter
+.ipynb_checkpoints/
