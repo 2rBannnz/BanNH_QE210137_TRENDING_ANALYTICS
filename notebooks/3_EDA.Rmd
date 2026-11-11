@@ -39,6 +39,7 @@ ti_le <- function(x, n) {
   `is_trending_main` = bảng chính; `is_trending_category` = bảng theo từng danh mục.
 - **Dữ liệu:** bản đóng băng `data/processed/video_features_full_2026-11-01.csv` của view `v_video_features` (156.311 video, 47 cột). Ý nghĩa từng cột: `reports/data_dictionary.md`. Làm sạch: `notebooks/1_Exploration.ipynb`.
 - **Mỗi nhãn một tập sạch:** nhãn chính dùng `is_clean` (độ phủ chart chính ≥ 0,6); nhãn danh mục dùng `is_clean_category` (độ phủ chart danh mục ≥ 0,3). Cả hai đều bỏ video thiếu thời lượng, dài hơn 3 giờ, hoặc kênh ẩn subscriber.
+- **Shorts** = video dài không quá **3 phút** (`is_short`), theo giới hạn Shorts của YouTube từ 15/10/2024 (trước đó 60 giây). API không cho biết video dọc hay ngang, nên đây là **ước lượng theo thời lượng**: video ngang ngắn hơn 3 phút cũng bị tính là Shorts.
 - Mọi tỉ lệ kèm **khoảng tin cậy 95% Wilson** để thể hiện độ bất định; không làm kiểm định p-value.
 
 ```{r load}
@@ -46,7 +47,7 @@ df_all <- read_csv("../data/processed/video_features_full_2026-11-01.csv",
                    guess_max = 200000, show_col_types = FALSE) |>
   mutate(time_slot = factor(time_slot, levels = c("hanh_chinh", "nghi")),
          subs_group = factor(subs_group, levels = c("<10k", "10k-100k", "100k-1M", "1M-10M", ">10M", "an")),
-         duration_group = factor(duration_group, levels = c("<=60s (Shorts)", "61-180s", "3-10 phut",
+         duration_group = factor(duration_group, levels = c("<=60s", "61-180s", "3-10 phut",
                                                             "10-20 phut", "20-60 phut", ">60 phut", "khong_ro")),
          dow = factor(publish_dow_vn, levels = 1:7, labels = c("T2", "T3", "T4", "T5", "T6", "T7", "CN")),
          ngay_dang = as.Date(release_at_vn),
@@ -171,10 +172,10 @@ tt |>
 
 **Tập sạch lệch mạnh theo ngày, nhưng không lệch theo khung giờ.**
 
-- **Theo ngày:** `is_clean` chỉ đến từ khoảng **13 ngày** ra mắt: 25/09–05/10 (đợt đầu, khi tập kênh còn nhỏ, ~2.500 video/ngày) cộng 3 ngày lẻ 10/10, **12/10** và **19/10**. Các ngày 06–09/10, 11/10, 13–18/10, 20/10 **không có video nào** đạt độ phủ, vì crawler vắng dài ngay sau đó (khoảng gián đoạn 94 giờ từ 15/10, 34 giờ từ 21/10). `is_clean_category` còn hẹp hơn: chủ yếu 09–12/10 và 19–20/10.
+- **Theo ngày:** `is_clean` chỉ đến từ **14 ngày** ra mắt: 25/09–05/10 (đợt đầu, khi tập kênh còn nhỏ, ~2.700 video/ngày) cộng 3 ngày lẻ 10/10, **12/10** và **19/10**. Các ngày 06–09/10, 11/10, 13–18/10, 20/10 **không có video nào** đạt độ phủ, vì crawler vắng dài ngay sau đó (khoảng gián đoạn 94 giờ từ 15/10, 34 giờ từ 21/10). `is_clean_category` còn hẹp hơn: chủ yếu 09–12/10 và 19–20/10.
 - **Hệ quả là lệch theo thứ:** 12/10 và 19/10 đều là **thứ 2**, nên thứ 2 chiếm 36% `is_clean` (cohort 16%) và 39% `is_clean_category`; thứ 4, thứ 5 chỉ còn khoảng 6%.
 - **Theo khung giờ: gần như không lệch.** Giờ hành chính chiếm 33,1% cohort, 35,2% `is_clean`, 29,6% `is_clean_category`. Phép so sánh chính không bị bộ lọc bóp méo trực tiếp.
-- **Theo thời lượng:** Shorts chiếm 36% `is_clean` so với 45% cohort (đợt đầu ít kênh Shorts hơn). Quy mô kênh lệch không quá 3 điểm %.
+- **Theo thời lượng:** Shorts (≤ 3 phút) chiếm 57% `is_clean` so với 65% cohort, vì tập sạch nặng về đợt đầu, mà đợt đầu ít Shorts hơn (53% so với 69% ở đợt sau). Quy mô kênh lệch không quá 3 điểm %.
 
 **Giới hạn cần ghi trong kết luận:** kết quả trên tập sạch phản ánh **một số ngày cụ thể**, nặng về thứ 2 và đợt cuối tháng 9. Vì giờ hành chính chỉ có ở thứ 2–6, **thứ trong tuần và đợt thời gian** phải được kiểm soát ở phần D (so sánh giờ hành chính với tối ngày thường, trong cùng ngày).
 
@@ -232,7 +233,7 @@ Không cột nào dùng cho câu hỏi chính (khung giờ, nhãn, danh mục, q
 
 1. Tập sạch còn khoảng **1/4 cohort** cho mỗi nhãn: 398 trending chính, 1.283 trending danh mục. Đủ để so sánh 2 khung giờ, nhưng mỗi giờ trong ngày chỉ có vài chục video trending chính.
 2. Bộ lọc độ phủ **không làm lệch khung giờ** (tỉ trọng và tỉ lệ qua ngưỡng gần bằng nhau).
-3. Bộ lọc **làm lệch ngày**: tập sạch dồn vào khoảng 13 ngày, nặng về thứ 2. Phải kiểm soát thứ trong tuần và đợt thời gian khi kết luận.
+3. Bộ lọc **làm lệch ngày**: tập sạch dồn vào 14 ngày, nặng về thứ 2. Phải kiểm soát thứ trong tuần và đợt thời gian khi kết luận.
 
 # Phần B — Phân phối từng biến
 
@@ -274,10 +275,10 @@ df |>
   mutate(ti_trong = percent(n / sum(n), 0.1))
 ```
 
-- **Đỉnh đăng bài là 17–19h** (tổng cộng khoảng 26% video), sau đó tới **10–11h**. Rất ít video đăng 0–4h.
+- **Đỉnh đăng bài là 17–19h** (tổng cộng khoảng 26% video), sau đó tới **11h** (8,7%). Rất ít video đăng 0–4h.
 - Trong 4 đoạn: giờ hành chính 35,2%, cuối tuần 31,7%, tối ngày thường 24,0%, đêm/sáng sớm ngày thường 9,1%. Mỗi đoạn có hàng nghìn video, đủ để so sánh.
 - Heatmap cho thấy lại độ lệch ngày ở A2: **thứ 2** dày gấp nhiều lần các ngày khác. Ô thứ 2, 11h có 1.522 video, chủ yếu từ 12/10 và 19/10, rải trên nhiều kênh chứ không do một kênh. Ở phần C, ô nào có ít video thì tỉ lệ trending rất nhiễu, phải ẩn đi.
-- Tập danh mục có hình dạng giống, nhưng dồn vào buổi tối hơn (18h chiếm 11,7%).
+- Tập danh mục có hình dạng giống, nhưng dồn vào buổi tối hơn (18h chiếm 11,6%).
 
 ## B2. Thời lượng và quy mô kênh
 
@@ -285,9 +286,9 @@ df |>
 p_tl <- df |>
   ggplot(aes(duration_s)) +
   geom_histogram(bins = 60, fill = "grey45") +
-  geom_vline(xintercept = c(60, 3 * 3600), linetype = "dashed", colour = c("#D55E00", "black")) +
-  scale_x_log10(labels = label_comma(), breaks = c(10, 60, 600, 3600, 10800)) +
-  labs(x = "Thời lượng (giây, trục log); đỏ = 60 giây", y = "Số video", title = "Thời lượng")
+  geom_vline(xintercept = c(60, 180, 3 * 3600), linetype = "dashed", colour = c("#D55E00", "#D55E00", "black")) +
+  scale_x_log10(labels = label_comma(), breaks = c(10, 60, 180, 600, 3600, 10800)) +
+  labs(x = "Thời lượng (giây, trục log); đỏ = 60 và 180 giây", y = "Số video", title = "Thời lượng")
 p_sub <- df |>
   ggplot(aes(log10_subs)) +
   geom_histogram(bins = 50, fill = "grey45") +
@@ -299,14 +300,15 @@ p_tl | p_sub
 ```{r b2-bang}
 df |>
   summarise(`Thời lượng trung vị (giây)` = median(duration_s),
-            `% Shorts (≤ 60 giây)` = percent(mean(is_short), 0.1),
+            `% Shorts (≤ 3 phút)` = percent(mean(is_short), 0.1),
+            `% video ≤ 60 giây` = percent(mean(duration_s <= 60), 0.1),
             `Subscriber trung vị` = comma(median(channel_subscribers)),
             `Số kênh` = n_distinct(channel_id),
             `Video / kênh (trung vị)` = median(count(df, channel_id)$n),
             `Video của 10 kênh đăng nhiều nhất` = percent(sum(head(sort(count(df, channel_id)$n, decreasing = TRUE), 10)) / n(), 0.1))
 ```
 
-- **Thời lượng** lệch phải rất mạnh: trung vị 118 giây, 36% là Shorts (≤ 60 giây). Có đỉnh nhọn ngay tại 60 giây (giới hạn Shorts cũ) và một cụm 10–15 phút. Vì phân phối nhiều đỉnh, các phần sau dùng **nhóm thời lượng** (`duration_group`) thay vì số giây.
+- **Thời lượng** lệch phải rất mạnh: trung vị 118 giây; 57% là Shorts (≤ 3 phút), riêng video ≤ 60 giây chiếm 36%. Có đỉnh nhọn ngay tại 60 giây (giới hạn Shorts trước 10/2024), một đỉnh nhỏ tại 180 giây (giới hạn hiện tại) và một cụm 10–15 phút. Vì phân phối nhiều đỉnh, các phần sau dùng **nhóm thời lượng** (`duration_group`) thay vì số giây.
 - **Quy mô kênh** cũng lệch phải: trung vị 184.000 subscriber, phần lớn video từ kênh 10k–10M. Dùng `log10_subs` hoặc `subs_group`, không dùng số thô.
 - **Tập trung theo kênh:** 3.356 kênh, trung vị 5 video/kênh, nhưng **10 kênh đăng nhiều nhất chiếm 12,4% video** (kênh nhiều nhất 909 video), hầu hết là kênh Tin tức. Nếu vài kênh này đăng dồn vào một khung giờ và hay trending, chúng có thể tạo ra "hiệu ứng khung giờ" giả. Phần D4 sẽ kiểm tra.
 
@@ -325,7 +327,7 @@ df |>
 
 ```{r b3-loai}
 df |>
-  summarise(`Shorts (≤ 60 giây)` = mean(is_short),
+  summarise(`Shorts (≤ 3 phút)` = mean(is_short),
             `Livestream / premiere` = mean(is_live_or_premiere),
             `HD` = mean(definition == "hd"),
             `Có phụ đề` = mean(caption),
@@ -341,7 +343,7 @@ df |>
 
 ## Tóm tắt phần B
 
-1. Video đăng nhiều nhất **17–19h** và **10–11h**; 4 đoạn thời gian đều đủ lớn để so sánh.
+1. Video đăng nhiều nhất **17–19h** và **11h**; 4 đoạn thời gian đều đủ lớn để so sánh.
 2. Thời lượng và subscriber **lệch phải mạnh**: dùng thang log hoặc nhóm.
 3. **10 kênh chiếm 12,4% video**, phần lớn là kênh tin tức: cần kiểm tra ảnh hưởng của chúng ở D4.
 4. HD và phụ đề gần như hằng số: bỏ.
@@ -377,7 +379,7 @@ ggplot(c1, aes(publish_hour_vn, rate)) +
 ```
 
 - **Đỉnh rõ nhất là 16–18h**: 17h đạt 2,3% (75 video trending), gấp hơn 2 lần tỉ lệ chung. Các giờ 9–15h đều **dưới** tỉ lệ chung; thấp nhất 13h (0,2%).
-- 4h có tỉ lệ 7,1% nhưng chỉ dựa trên 337 video, và 14 trong 24 video trending đến từ 2 kênh âm nhạc: đây là **hiệu ứng của vài kênh**, không phải của giờ đăng (xem D4).
+- 4h có tỉ lệ 7,1% nhưng chỉ dựa trên 337 video, và 14 trong 24 video trending đến từ 2 kênh (1 kênh Mọi người và Blog: 8 video, 1 kênh Âm nhạc: 6 video); cả 24 video đều là livestream. Đây là **hiệu ứng của vài kênh**, không phải của giờ đăng (xem D4).
 - 0–3h và 22–23h có quá ít video, khoảng tin cậy rất rộng, không kết luận được.
 
 ## C2. Giờ hành chính hay giờ nghỉ?
@@ -447,7 +449,7 @@ ggplot(c4, aes(day_part, fct_rev(dow), fill = rate)) +
   labs(x = NULL, y = NULL, title = "Tỉ lệ trending chính theo thứ × buổi (is_clean)")
 ```
 
-**Thứ 2 thấp ở mọi buổi** (0,3–0,6%), trong khi thứ 3–6 cao hơn hẳn. Lý do không nằm ở "thứ 2": tỉ lệ trending **giảm mạnh theo ngày** trong tập sạch.
+**Thứ 2 thấp ở sáng, chiều, tối** (0,35–0,57%), trong khi thứ 3–6 cao hơn hẳn. Riêng đêm thứ 2 (0–6h) là 1,44%, nhưng chỉ 12 trên 835 video. Lý do không nằm ở "thứ 2": tỉ lệ trending **giảm mạnh theo ngày** trong tập sạch.
 
 ```{r c4-ngay}
 df |>
@@ -457,7 +459,7 @@ df |>
             ci_95 = paste0(percent(lo, 0.01), " – ", percent(hi, 0.01)))
 ```
 
-Cách giải thích hợp lý nhất: chart chính chỉ có khoảng 200 chỗ mỗi lần chụp, còn số video mới mỗi ngày trong cohort tăng từ khoảng 2.500 (đợt 1) lên 7.000–8.500 (đợt 2, sau khi `discover` mở rộng tập kênh, thêm nhiều kênh nhỏ). Cùng một số chỗ chia cho nhiều video hơn nên **tỉ lệ nền giảm từ 1,32% xuống 0,44%** (riêng 12/10 và 19/10 chỉ khoảng 0,3%). Hai ngày 12/10 và 19/10 là thứ 2 và chiếm **57% video giờ hành chính** trong tập sạch, nên tỉ lệ giờ hành chính bị kéo xuống.
+Cách giải thích hợp lý nhất: chart chính chỉ có khoảng 200 chỗ mỗi lần chụp, còn số video mới mỗi ngày trong cohort tăng từ khoảng 2.700 (đợt 1, trung vị) lên 7.300–8.600 (đợt 2, sau khi `discover` mở rộng tập kênh, thêm nhiều kênh nhỏ). Cùng một số chỗ chia cho nhiều video hơn nên **tỉ lệ nền giảm từ 1,32% xuống 0,44%** (riêng 12/10 và 19/10 chỉ khoảng 0,3%). Hai ngày 12/10 và 19/10 là thứ 2 và chiếm **48% video giờ hành chính** trong tập sạch, nên tỉ lệ giờ hành chính bị kéo xuống.
 
 Câu hỏi quan trọng: chênh lệch giờ hành chính / tối ngày thường có còn khi so **trong cùng nhóm ngày**?
 
@@ -525,9 +527,9 @@ top_cat <- df |> count(category_title, sort = TRUE) |> slice_head(n = 6) |> pull
 them_bien <- function(d, nhan) {
   d |>
     mutate(cat_gop = if_else(category_title %in% top_cat, category_title, "Khác"),
-           thoi_luong = case_when(duration_s <= 60 ~ "Shorts (≤ 60 giây)",
-                                  duration_s <= 600 ~ "1–10 phút",
-                                  TRUE ~ "> 10 phút") |> factor(levels = c("Shorts (≤ 60 giây)", "1–10 phút", "> 10 phút")),
+           thoi_luong = case_when(is_short ~ "Shorts (≤ 3 phút)",
+                                  duration_s <= 600 ~ "3–10 phút",
+                                  TRUE ~ "> 10 phút") |> factor(levels = c("Shorts (≤ 3 phút)", "3–10 phút", "> 10 phút")),
            dot = if_else(ngay_dang <= as.Date("2026-10-05"), "Đợt 1 (25/09–05/10)", "Đợt 2 (10, 12, 19/10)"),
            y = {{ nhan }},
            w = 1)
@@ -570,7 +572,7 @@ Hai khung giờ khác nhau ở những chỗ **đều bất lợi cho giờ hàn
 
 - **Đợt:** chỉ 52% video giờ hành chính thuộc đợt 1 (tỉ lệ nền cao), so với 67% của giờ nghỉ.
 - **Danh mục:** giờ hành chính có nhiều Tin tức hơn (27% so với 22%), mà Tin tức gần như không bao giờ lên chart chính (xem D2).
-- **Thời lượng:** giờ hành chính có ít video dài trên 10 phút hơn (25% so với 32%), mà video dài trending nhiều hơn hẳn.
+- **Thời lượng:** giờ hành chính có ít video dài trên 10 phút hơn (24,5% so với 31,5%) và nhiều Shorts hơn (61% so với 55%), mà video dài trending nhiều hơn hẳn.
 - **Quy mô kênh:** gần như giống nhau.
 
 Nghĩa là một phần chênh lệch ở phần C có thể đến từ **loại video** được đăng vào mỗi khung giờ, không phải từ giờ đăng.
@@ -599,8 +601,8 @@ d2 |>
   arrange(bien, desc(so_video))
 ```
 
-- **Phát hiện quan trọng nhất của phần D:** **Tin tức (9.632 video) và Thể thao (3.021 video) có 0 video trending chính; Shorts có 2 trên 14.710.** Chart chính VN gần như không chứa các loại này. Video trending tập trung ở video dài trên 10 phút (328/398).
-- Trong **hầu hết** các nhóm còn so sánh được, giờ nghỉ vẫn cao hơn: Mọi người và Blog 2,4 lần, Giải trí 2,4, Trò chơi 1,5; kênh 10k–100k 3,0, kênh 1M–10M 2,4, kênh 100k–1M 1,4; video 1–10 phút 1,7, trên 10 phút 1,55; đợt 1 1,5, đợt 2 2,8.
+- **Phát hiện quan trọng nhất của phần D:** **Tin tức (9.632 video) và Thể thao (3.021 video) có 0 video trending chính; Shorts (≤ 3 phút) có 5 trên 23.093.** Chart chính VN gần như không chứa các loại này. Video trending tập trung ở video dài trên 10 phút (328/398).
+- Trong **hầu hết** các nhóm còn so sánh được, giờ nghỉ vẫn cao hơn: Mọi người và Blog 2,4 lần, Giải trí 2,4, Trò chơi 1,5; kênh 10k–100k 3,0, kênh 1M–10M 2,4, kênh 100k–1M 1,4; video 3–10 phút 1,5, trên 10 phút 1,55; đợt 1 1,5, đợt 2 2,8.
 - Ngoại lệ: **Âm nhạc** không khác biệt (1,0); kênh trên 10M chỉ có 6 video trending, không đủ để kết luận.
 
 ## D3. Gộp lại: tỉ số sau khi kiểm soát
@@ -649,8 +651,8 @@ ggplot(d3, aes(rr, fct_rev(kiem_soat))) +
 
 - Kiểm soát **ngày đăng** chỉ giữ các ngày có cả 2 khung giờ, tức thứ 2–6 (27.273 video); khi đó giờ nghỉ thực chất là tối và đêm/sáng ngày thường. Tỉ số gần như không đổi: 1,91 → 1,84.
 - Thêm **quy mô kênh**: 1,79. Thêm **danh mục**: 1,47 (CI 1,04–2,02), vẫn trên 1.
-- Thêm **thời lượng**: còn **1,26 (CI 0,95–1,71)**, khoảng tin cậy chạm 1.
-- Nghĩa là: **danh mục và thời lượng giải thích khoảng một nửa chênh lệch** (giờ nghỉ có nhiều video dài, ít tin tức hơn). Phần còn lại, khoảng 1,25–1,5 lần, vẫn nghiêng về giờ nghỉ nhưng bằng chứng yếu hơn nhiều so với con số 1,9 ban đầu.
+- Thêm **thời lượng**: còn **1,24 (CI 0,93–1,69)**, khoảng tin cậy chạm 1.
+- Nghĩa là: **danh mục và thời lượng giải thích khoảng một nửa chênh lệch** (giờ nghỉ có nhiều video dài, ít tin tức hơn). Phần còn lại, khoảng 1,2–1,5 lần, vẫn nghiêng về giờ nghỉ nhưng bằng chứng yếu hơn nhiều so với con số 1,9 ban đầu.
 - Khoảng tin cậy bootstrap theo kênh rộng hơn khoảng Wilson ở phần C (1,38–2,49 so với tỉ số thô 1,91), vì video cùng kênh có xu hướng cùng trending hoặc cùng không.
 
 ## D4. Ảnh hưởng của vài kênh lớn
@@ -676,15 +678,15 @@ tibble(bo = c(0, 5, 10, 20)) |>
 ```
 
 - 398 video trending đến từ 221 kênh; 10 kênh đầu chỉ chiếm 14,8%, mỗi kênh tối đa 8 video. Trending **không** do vài kênh chi phối.
-- Bỏ 5, 10, 20 kênh trending nhiều nhất, tỉ số (kiểm soát ngày, quy mô kênh) còn **tăng nhẹ** từ 1,79 lên 1,91. Chênh lệch không phải do vài kênh lớn tạo ra. Đỉnh 4h ở C1 là chuyện riêng của 2 kênh âm nhạc, không ảnh hưởng kết luận chung.
+- Bỏ 5, 10, 20 kênh trending nhiều nhất, tỉ số (kiểm soát ngày, quy mô kênh) còn **tăng nhẹ** từ 1,79 lên 1,91. Chênh lệch không phải do vài kênh lớn tạo ra. Đỉnh 4h ở C1 là chuyện riêng của 2 kênh phát livestream (1 Blog, 1 Âm nhạc), không ảnh hưởng kết luận chung.
 
 ## D5. Chỉ xét video "có khả năng" lên chart chính
 
-Trong **toàn bộ cohort**, 1.029 video trending chính chỉ có 2 Shorts, 0 video Tin tức và 1 video Thể thao: chart chính VN gần như **không bao giờ** chứa các loại này.
-Những video đó luôn có nhãn 0 dù đăng giờ nào, nên chúng chỉ làm loãng phép so sánh. Lặp lại D3 trên nhóm còn lại: video dài hơn 60 giây, không thuộc Tin tức, Thể thao.
+Trong **toàn bộ cohort**, 1.029 video trending chính chỉ có 8 Shorts (≤ 3 phút; riêng ≤ 60 giây là 2), 0 video Tin tức và 1 video Thể thao: chart chính VN gần như **không bao giờ** chứa các loại này.
+Những video đó luôn có nhãn 0 dù đăng giờ nào, nên chúng chỉ làm loãng phép so sánh. Lặp lại D3 trên nhóm còn lại: video dài hơn 3 phút, không thuộc Tin tức, Thể thao.
 
 ```{r d5}
-df_e <- filter(df_d, duration_s > 60, !category_title %in% c("Tin tức và Chính trị", "Thể thao"))
+df_e <- filter(df_d, !is_short, !category_title %in% c("Tin tức và Chính trị", "Thể thao"))
 ti_le_nhom(df_e, is_trending_main, time_slot) |>
   transmute(khung_gio = ten_slot[as.character(time_slot)], so_video = n, so_trending = x,
             ti_le = percent(rate, 0.01), ci_95 = paste0(percent(lo, 0.01), " – ", percent(hi, 0.01)))
@@ -704,16 +706,16 @@ bind_rows(mutate(d3, tap = "Toàn bộ is_clean"), mutate(d5, tap = "Video có k
   theme(legend.position = "bottom")
 ```
 
-- Nhóm "có khả năng trending" còn 15.213 video nhưng giữ **396/398** video trending. Tỉ lệ: giờ hành chính 1,81% (CI 1,47–2,22%), giờ nghỉ 2,98% (CI 2,67–3,32%), gấp **1,65 lần**.
-- Sau kiểm soát ngày, quy mô kênh, danh mục: **1,43 (CI 1,04–1,96)**. Thêm thời lượng: **1,25 (CI 0,91–1,70)**. Kết quả gần như trùng với D3: loại Shorts và Tin tức ra không làm đổi kết luận, chỉ làm tỉ lệ dễ đọc hơn.
-- Trong nhóm này, giờ nghỉ có **50% video dài trên 10 phút**, giờ hành chính chỉ **39%**. Video dài trending khoảng 4–5%, video 1–10 phút chỉ khoảng 0,6–1%. Ngay trong cùng nhóm thời lượng, giờ nghỉ vẫn cao hơn (video dài 4,95% so với 3,71%; video 1–10 phút 0,97% so với 0,60%).
+- Nhóm "có khả năng trending" còn 10.231 video nhưng giữ **393/398** video trending. Tỉ lệ: giờ hành chính 2,95% (CI 2,40–3,62%), giờ nghỉ 4,21% (CI 3,77–4,69%), gấp **1,43 lần**.
+- Sau kiểm soát ngày, quy mô kênh, danh mục: **1,28 (CI 0,93–1,78)**. Thêm thời lượng: **1,19 (CI 0,87–1,67)**. Cả hai khoảng tin cậy đều chạm 1: khi đã bỏ Shorts và Tin tức, lợi thế của giờ nghỉ nhỏ hơn D3 (1,47) và **không còn chắc chắn**.
+- Trong nhóm này, giờ nghỉ có **72% video dài trên 10 phút**, giờ hành chính **63%**, và video dài trending nhiều hơn hẳn video 3–10 phút. Đây là lý do kiểm soát thời lượng làm tỉ số giảm tiếp. Ngay trong cùng nhóm thời lượng, giờ nghỉ vẫn cao hơn (video dài 4,95% so với 3,71%; video 3–10 phút 2,31% so với 1,64%).
 
 ## Tóm tắt phần D
 
 1. Chênh lệch thô **1,9 lần** ở phần C **bị phóng đại** vì giờ hành chính có nhiều video "không thể trending" (Tin tức, Shorts), ít video dài, và nhiều video của đợt có tỉ lệ nền thấp.
-2. Sau khi kiểm soát ngày đăng, quy mô kênh, danh mục, **giờ nghỉ vẫn hơn khoảng 1,45 lần** (khoảng tin cậy trên 1). Kiểm soát thêm thời lượng thì còn **khoảng 1,25 lần** và khoảng tin cậy chạm 1.
+2. Sau khi kiểm soát ngày đăng, quy mô kênh, danh mục, **giờ nghỉ vẫn hơn khoảng 1,45 lần** (khoảng tin cậy trên 1). Kiểm soát thêm thời lượng thì còn **khoảng 1,25 lần** và khoảng tin cậy chạm 1. Chỉ xét video có khả năng trending (D5), tỉ số còn khoảng 1,2–1,3 và khoảng tin cậy chạm 1.
 3. Chênh lệch **không** do vài kênh lớn tạo ra.
-4. Kết luận thận trọng: **giờ nghỉ (đặc biệt chiều tối 16–18h ngày thường) có lợi thế vừa phải, khoảng 1,25–1,5 lần**. Yếu tố quyết định lớn hơn nhiều là **loại video**: video dài, không phải Shorts, không phải tin tức.
+4. Kết luận thận trọng: **giờ nghỉ (đặc biệt chiều tối 16–18h ngày thường) có lợi thế vừa phải, khoảng 1,2–1,5 lần**, và lợi thế này không còn chắc chắn khi kiểm soát thêm thời lượng. Yếu tố quyết định lớn hơn nhiều là **loại video**: video dài, không phải Shorts, không phải tin tức.
 
 # Phần E — Chân dung video trending
 
@@ -795,7 +797,7 @@ df_d |>
 Video trending chính có chân dung **rất khác** video thường, rõ hơn nhiều so với khác biệt về giờ đăng:
 
 - **Video dài:** trung vị 22,4 phút so với 1,9 phút; 82% dài trên 10 phút (video thường 29%).
-- **Gần như không có Shorts** (0,5% so với 36,6%) và **không có Tin tức, Thể thao** (0% so với 31,5%).
+- **Gần như không có Shorts** (1,3% so với 57,5%) và **không có Tin tức, Thể thao** (0% so với 31,5%).
 - **Trò chơi và Âm nhạc** chiếm 74% video trending, nhưng chỉ 12% video thường.
 - **Kênh lớn hơn** (trung vị 360.000 so với 184.000 subscriber), nhiều livestream / premiere hơn (21% so với 10%).
 - Chỉ 22% video trending được đăng giờ hành chính, so với 35% video thường.
@@ -832,8 +834,8 @@ bind_rows(mutate(d3, nhan = "Chart chính (is_clean)"), mutate(f2, nhan = "Chart
   theme(legend.position = "bottom")
 ```
 
-- Chart danh mục có quy luật **ngược với chart chính**: **Shorts lại có tỉ lệ cao nhất** (3,85%, so với khoảng 2,6% ở video dài), và Tin tức, Thể thao vẫn lọt được (1,3% và 3,6%). Hai chart chọn video theo cách khác nhau.
-- Tỉ số nghỉ / hành chính chỉ **1,12 khi chưa kiểm soát** (CI 0,98–1,27), và về **khoảng 1,0 khi kiểm soát ngày đăng** (1,02; CI 0,89–1,17). Kiểm soát thêm quy mô kênh, danh mục, thời lượng: 0,97 (CI 0,85–1,11).
+- Chart danh mục có quy luật **ngược với chart chính**: **Shorts lại có tỉ lệ cao nhất** (3,74%, so với 2,59% ở video trên 10 phút và 1,04% ở video 3–10 phút), và Tin tức, Thể thao vẫn lọt được (1,3% và 3,6%). Hai chart chọn video theo cách khác nhau.
+- Tỉ số nghỉ / hành chính chỉ **1,12 khi chưa kiểm soát** (CI 0,98–1,27), và về **khoảng 1,0 khi kiểm soát ngày đăng** (1,02; CI 0,89–1,17). Kiểm soát thêm quy mô kênh, danh mục, thời lượng: 0,98 (CI 0,85–1,12).
 - **Kết luận cho chart danh mục: giờ đăng không tạo khác biệt.** Chênh lệch nhỏ ở phần C đến từ ngày đăng (tập sạch dồn vào thứ 2 ở đợt có tỉ lệ nền thấp).
 
 # Phần I — Kết luận và đề xuất cho Report 4
@@ -843,13 +845,15 @@ bind_rows(mutate(d3, nhan = "Chart chính (is_clean)"), mutate(f2, nhan = "Chart
 ```{r i1}
 tibble(
   `Bằng chứng` = c("Tỉ lệ thô (C2)", "Cùng nhóm ngày, so với tối ngày thường (C4)", "Đổi ngưỡng độ phủ 0–0,7 (C5)",
-                   "Kiểm soát ngày, quy mô kênh, danh mục (D3)", "+ thời lượng (D3)", "Bỏ 20 kênh trending nhiều nhất (D4)"),
-  `Chart chính: nghỉ / hành chính` = c("1,91 (CI 1,38–2,49)", "1,8–2,1", "1,9–2,25", "1,47 (CI 1,04–2,02)", "1,26 (CI 0,95–1,71)", "1,91"),
-  `Chart danh mục: nghỉ / hành chính` = c("1,12 (CI 0,98–1,27)", "—", "—", "0,98 (CI 0,84–1,12)", "0,97 (CI 0,85–1,11)", "—")
+                   "Kiểm soát ngày, quy mô kênh, danh mục (D3)", "+ thời lượng (D3)", "Bỏ 20 kênh trending nhiều nhất (D4)",
+                   "Chỉ video có khả năng trending, kiểm soát ngày, quy mô kênh, danh mục (D5)"),
+  `Chart chính: nghỉ / hành chính` = c("1,91 (CI 1,38–2,49)", "1,8–2,1", "1,9–2,25", "1,47 (CI 1,04–2,02)", "1,24 (CI 0,93–1,69)", "1,91",
+                                       "1,28 (CI 0,93–1,78)"),
+  `Chart danh mục: nghỉ / hành chính` = c("1,12 (CI 0,98–1,27)", "—", "—", "0,98 (CI 0,84–1,12)", "0,98 (CI 0,85–1,12)", "—", "—")
 )
 ```
 
-1. **Chart chính (Top Trending chung):** video đăng **ngoài giờ hành chính** dễ lọt trending hơn, rõ nhất khi đăng **chiều tối ngày thường (16–18h)**. Mức chênh lệch thô gần **2 lần**, nhưng phần lớn đến từ **loại video** đăng vào mỗi khung giờ. Sau khi kiểm soát ngày đăng, quy mô kênh và danh mục, lợi thế còn khoảng **1,5 lần** (khoảng tin cậy vẫn trên 1); kiểm soát thêm thời lượng thì còn khoảng **1,25 lần** và không còn chắc chắn.
+1. **Chart chính (Top Trending chung):** video đăng **ngoài giờ hành chính** dễ lọt trending hơn, rõ nhất khi đăng **chiều tối ngày thường (16–18h)**. Mức chênh lệch thô gần **2 lần**, nhưng phần lớn đến từ **loại video** đăng vào mỗi khung giờ. Sau khi kiểm soát ngày đăng, quy mô kênh và danh mục, lợi thế còn khoảng **1,5 lần** (khoảng tin cậy vẫn trên 1); kiểm soát thêm thời lượng, hoặc chỉ xét video có khả năng trending, thì còn khoảng **1,2–1,3 lần** và không còn chắc chắn.
 2. **Chart danh mục:** **không có khác biệt** theo giờ đăng sau khi kiểm soát (tỉ số khoảng 1,0).
 3. **Yếu tố mạnh hơn nhiều so với giờ đăng là loại video:** chart chính gần như chỉ chứa video dài (82% trên 10 phút), không có Shorts, không có Tin tức, Thể thao; Trò chơi và Âm nhạc chiếm 74%.
 
@@ -860,13 +864,14 @@ tibble(
 | Giới hạn | Ảnh hưởng | Đã xử lý / cần ghi nhớ |
 |---|---|---|
 | Crawler chỉ có mặt khoảng 59% số giờ | Nhãn 0 có thể sai | Lọc độ phủ (`is_clean`), bảng độ nhạy cho thấy kết luận không đổi theo ngưỡng (C5) |
-| Tập sạch chỉ đến từ khoảng 13 ngày, nặng về thứ 2 (A2) | Kết quả đại diện cho những ngày đó | Kiểm soát ngày đăng (D3); so trong cùng nhóm ngày (C4) |
+| Tập sạch chỉ đến từ 14 ngày, nặng về thứ 2 (A2) | Kết quả đại diện cho những ngày đó | Kiểm soát ngày đăng (D3); so trong cùng nhóm ngày (C4) |
 | Tỉ lệ nền giảm theo thời gian (1,32% → 0,44%) do tập kênh mở rộng | So sánh khác ngày bị lệch | Kiểm soát ngày đăng |
 | Chỉ theo dõi kênh trong danh sách (`uploads`), không phải mọi video VN | Kết luận áp dụng cho các kênh đang theo dõi | Ghi rõ phạm vi |
 | `channel_subscribers` là số tại lần chụp kênh mới nhất | Biến kiểm soát quy mô kênh hơi lệch thời điểm | Dùng theo nhóm (`subs_group`), sai lệch nhỏ |
 | Video cùng kênh không độc lập | Khoảng tin cậy Wilson quá hẹp | Bootstrap theo kênh (D3) |
 | Đây là dữ liệu quan sát | Chỉ nói được "đi kèm", không chứng minh "giờ đăng **gây ra** trending" | Không kết luận nhân quả |
 | Cửa sổ 72 giờ | Video lên chart sau 72 giờ tính là 0 | Theo định nghĩa câu hỏi |
+| Shorts xác định theo thời lượng (≤ 3 phút) | API không cho biết video dọc hay ngang; video ngang ngắn cũng bị tính là Shorts | Ghi rõ là ước lượng |
 
 ## I3. Đề xuất cho Report 4 (mô hình phân loại)
 
