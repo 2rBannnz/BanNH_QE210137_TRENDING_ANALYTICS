@@ -118,7 +118,7 @@ Làm lại 01/11 trên bản đóng băng (bản cũ 23/10 đã bỏ). Notebook:
 
 1. **Phần 1:** thu được 165.393 file raw (9,32 GB) của máy VN. Nhưng crawler chạy trên máy cá nhân nên **chỉ khoảng 50% số giờ có lần chụp trending**, ít nhất vào 10–13h. Đây là điểm yếu lớn nhất của dữ liệu. Ngày 30/10 gộp thêm 65.179 file của máy JP và US (P20–P21).
 2. **Phần 2:** biến điểm yếu đó thành **cột đo được** (`coverage_24h`, `coverage_72h`; chart danh mục có `coverage_cat_*` riêng) và lọc theo ngưỡng 0,6 cho nhãn chính, 0,3 cho nhãn danh mục. Mốc 01/11: cohort VN 156.311 video còn **40.531 video sạch cho nhãn chính (398 trending)** và **39.669 video sạch cho nhãn danh mục (1.283 trending)**.
-3. **Phần 3:** với **chart chính**, đăng ngoài giờ hành chính (rõ nhất 16–18h ngày thường) dễ lọt trending hơn: thô gấp 1,9 lần, sau khi kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần**, thêm thời lượng còn khoảng 1,25 lần. Với **chart danh mục** không có khác biệt. **Loại video** (dài, không Shorts, không tin tức) quan trọng hơn giờ đăng nhiều.
+3. **Phần 3:** với **chart chính**, đăng ngoài giờ hành chính (rõ nhất 16–18h ngày thường) dễ lọt trending hơn: thô gấp 1,9 lần, sau khi kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần**, thêm thời lượng còn khoảng 1,25 lần và không còn chắc chắn. Với **chart danh mục** không có khác biệt. **Loại video** (dài, không Shorts, không tin tức) quan trọng hơn giờ đăng nhiều. Shorts = video ≤ 3 phút (giới hạn của YouTube từ 15/10/2024), ước lượng theo thời lượng.
 
 ## Điểm lệch giữa tài liệu cũ và code hiện tại
 

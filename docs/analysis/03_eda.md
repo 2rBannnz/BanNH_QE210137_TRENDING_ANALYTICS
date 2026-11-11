@@ -52,8 +52,9 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 - **Kết quả.**
   - Phễu nhãn chính: 156.311 → 154.194 (qua cờ thời lượng, subscriber) → **40.531** (26%). Tỉ lệ trending tăng 0,57% → 0,98% khi lọc độ phủ, đúng như dự kiến (video bị loại mang nhiều nhãn 0 sai).
   - **Không lệch khung giờ:** giờ hành chính chiếm 33,1% cohort, 35,2% `is_clean`. Tỉ lệ qua ngưỡng 27,9% (hành chính) so với 25,5% (nghỉ). Bộ lọc không thiên vị khung giờ nào.
-  - **Lệch mạnh theo ngày:** `is_clean` chỉ đến từ khoảng **13 ngày** (25/09–05/10 cộng 10/10, 12/10, 19/10). Hai ngày 12/10 và 19/10 là thứ 2, nên **thứ 2 chiếm 36%** tập sạch (cohort 16%).
-  - Shorts chiếm 36% `is_clean` so với 45% cohort. Quy mô kênh lệch không quá 3 điểm %.
+  - **Lệch mạnh theo ngày:** `is_clean` chỉ đến từ **14 ngày** (25/09–05/10 cộng 10/10, 12/10, 19/10). Hai ngày 12/10 và 19/10 là thứ 2, nên **thứ 2 chiếm 36%** tập sạch (cohort 16%).
+  - Shorts (≤ 3 phút) chiếm 57% `is_clean` so với 65% cohort, vì tập sạch nặng về đợt đầu, mà đợt đầu ít Shorts hơn. Quy mô kênh lệch không quá 3 điểm %.
+  - **Định nghĩa Shorts:** video ≤ 3 phút, theo giới hạn của YouTube từ 15/10/2024 (trước đó 60 giây). API không cho biết video dọc hay ngang, nên đây là ước lượng theo thời lượng.
 - **Hạn chế.** Kết quả của các phần sau phản ánh những ngày cụ thể đó. Phải kiểm soát ngày đăng (E5, E7).
 
 ## E2. Phân phối từng biến
@@ -61,8 +62,8 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 - **Vấn đề.** Cần biết hình dạng dữ liệu trước khi so với nhãn: biến nào lệch, nhóm nào quá nhỏ, biến nào vô dụng.
 - **Cách giải.** Histogram giờ đăng, heatmap giờ × thứ, thời lượng và subscriber trên thang log, số video theo danh mục, tỉ trọng các loại video.
 - **Kết quả.**
-  - Video đăng nhiều nhất **17–19h** (26%) và 10–11h. 4 đoạn thời gian (hành chính 35%, cuối tuần 32%, tối ngày thường 24%, đêm/sáng ngày thường 9%) đều đủ lớn.
-  - Thời lượng và subscriber **lệch phải mạnh** (trung vị 118 giây, 184.000 subscriber): dùng nhóm hoặc thang log.
+  - Video đăng nhiều nhất **17–19h** (26%) và 11h (8,7%). 4 đoạn thời gian (hành chính 35%, cuối tuần 32%, tối ngày thường 24%, đêm/sáng ngày thường 9%) đều đủ lớn.
+  - Thời lượng và subscriber **lệch phải mạnh** (trung vị 118 giây, 184.000 subscriber): dùng nhóm hoặc thang log. 57% video là Shorts (≤ 3 phút), riêng video ≤ 60 giây chiếm 36%.
   - 3.356 kênh, nhưng **10 kênh chiếm 12,4% video** (chủ yếu kênh tin tức).
   - 3 danh mục lớn nhất chiếm 69% video. **HD 99,5%, phụ đề 0,6%**: gần như hằng số, bỏ khỏi phân tích.
 
@@ -72,7 +73,7 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 - **Cách giải.** Tỉ lệ và khoảng tin cậy Wilson cho từng giờ 0–23 trên `is_clean`.
 - **Kết quả.**
   - **Đỉnh 16–18h:** 17h đạt 2,3% (75 video trending), gấp hơn 2 lần tỉ lệ chung 0,98%. Các giờ 9–15h đều dưới tỉ lệ chung; thấp nhất 13h (0,2%).
-  - 4h có 7,1% nhưng chỉ 337 video, 14/24 video trending đến từ 2 kênh âm nhạc: hiệu ứng của kênh, không phải của giờ.
+  - 4h có 7,1% nhưng chỉ 337 video, 14/24 video trending đến từ 2 kênh (1 Mọi người và Blog, 1 Âm nhạc), cả 24 đều là livestream: hiệu ứng của kênh, không phải của giờ.
 - **Hạn chế.** Mỗi giờ chỉ có vài chục video trending, khoảng tin cậy rộng; 0–3h và 22–23h không kết luận được.
 
 ## E4. Giờ hành chính hay giờ nghỉ
@@ -91,11 +92,11 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 
 ## E5. Tỉ lệ nền thay đổi theo ngày
 
-- **Vấn đề.** Heatmap thứ × buổi cho thấy thứ 2 thấp ở mọi buổi. Nếu do ngày đăng chứ không do giờ đăng, so sánh ở E4 bị lệch.
+- **Vấn đề.** Heatmap thứ × buổi cho thấy thứ 2 thấp ở sáng, chiều, tối (0,35–0,57%; riêng đêm thứ 2 là 1,44% nhưng chỉ 12/835 video). Nếu do ngày đăng chứ không do giờ đăng, so sánh ở E4 bị lệch.
 - **Cách giải.** Tỉ lệ theo đợt ngày; so giờ hành chính với tối ngày thường **trong cùng nhóm ngày**.
 - **Kết quả.**
-  - Tỉ lệ nền **giảm từ 1,32% (đợt 1: 25/09–05/10) xuống 0,44% (đợt 2: 10, 12, 19/10)**. Giải thích hợp lý nhất: chart chính chỉ có khoảng 200 chỗ, còn số video mới mỗi ngày tăng từ khoảng 2.500 lên 7.000–8.500 sau khi `discover` mở rộng tập kênh.
-  - 12/10 và 19/10 (thứ 2, đợt 2) chiếm **57% video giờ hành chính** trong tập sạch, nên kéo tỉ lệ giờ hành chính xuống.
+  - Tỉ lệ nền **giảm từ 1,32% (đợt 1: 25/09–05/10) xuống 0,44% (đợt 2: 10, 12, 19/10)**. Giải thích hợp lý nhất: chart chính chỉ có khoảng 200 chỗ, còn số video mới mỗi ngày tăng từ khoảng 2.700 (trung vị đợt 1) lên 7.300–8.600 sau khi `discover` mở rộng tập kênh.
+  - 12/10 và 19/10 (thứ 2, đợt 2) chiếm **48% video giờ hành chính** trong tập sạch, nên kéo tỉ lệ giờ hành chính xuống.
   - Trong cùng nhóm ngày, chênh lệch vẫn còn: thứ 2 là 0,31% so với 0,64% (gấp 2,1); thứ 3–6 là 1,03% so với 1,86% (gấp 1,8).
 
 ## E6. Độ vững theo ngưỡng độ phủ
@@ -114,21 +115,22 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
   - Khoảng tin cậy **bootstrap theo kênh** (300 lần), vì video cùng kênh không độc lập.
   - Lặp lại trên nhóm video "có khả năng trending" (bỏ Shorts, Tin tức, Thể thao).
 - **Kết quả.**
-  - Giờ hành chính có **nhiều Tin tức hơn** (27% so với 22%), **ít video dài hơn** (25% so với 32% trên 10 phút), **nhiều video đợt 2 hơn** (48% so với 33%): đều bất lợi cho giờ hành chính.
-  - **Phát hiện lớn:** trong toàn bộ cohort, 1.029 video trending chính có 2 Shorts, 0 Tin tức, 1 Thể thao. Chart chính VN gần như không chứa các loại này.
+  - Giờ hành chính có **nhiều Tin tức hơn** (27% so với 22%), **ít video dài hơn** (24,5% so với 31,5% trên 10 phút), **nhiều Shorts hơn** (61% so với 55%), **nhiều video đợt 2 hơn** (48% so với 33%): đều bất lợi cho giờ hành chính.
+  - **Phát hiện lớn:** trong toàn bộ cohort, 1.029 video trending chính có 8 Shorts (≤ 3 phút; riêng ≤ 60 giây là 2), 0 Tin tức, 1 Thể thao. Trong `is_clean`, Shorts có 5 trên 23.093 video trending. Chart chính VN gần như không chứa các loại này.
 
   | Kiểm soát | Toàn bộ `is_clean` | Bỏ Shorts, Tin tức, Thể thao |
   |---|---|---|
-  | Không | 1,91 (1,38–2,49) | 1,65 (1,23–2,17) |
-  | + ngày đăng | 1,84 | 1,54 |
-  | + quy mô kênh | 1,79 | 1,50 |
-  | + danh mục | **1,47 (1,04–2,02)** | **1,43 (1,04–1,96)** |
-  | + thời lượng | 1,26 (0,95–1,71) | 1,25 (0,91–1,70) |
+  | Không | 1,91 (1,38–2,49) | 1,43 (1,07–1,90) |
+  | + ngày đăng | 1,84 | 1,31 |
+  | + quy mô kênh | 1,79 | 1,30 |
+  | + danh mục | **1,47 (1,04–2,02)** | **1,28 (0,93–1,78)** |
+  | + thời lượng | 1,24 (0,93–1,69) | 1,19 (0,87–1,67) |
 
-  - Danh mục và thời lượng giải thích khoảng **một nửa** chênh lệch. Phần còn lại khoảng 1,25–1,5 lần.
+  - Danh mục và thời lượng giải thích khoảng **một nửa** chênh lệch. Phần còn lại khoảng 1,2–1,5 lần.
+  - Nhóm "có khả năng trending" (10.231 video, giữ 393/398 trending): sau kiểm soát ngày, quy mô kênh, danh mục còn 1,28 và khoảng tin cậy đã chạm 1.
 - **Hạn chế.**
   - Kiểm soát ngày đăng chỉ giữ ngày có cả 2 khung giờ (thứ 2–6, 27.273 video), nên so sánh thực chất là giờ hành chính với tối và đêm/sáng ngày thường.
-  - Kiểm soát đủ 4 yếu tố tạo 618 tầng, nhiều tầng rất nhỏ; khoảng tin cậy rộng.
+  - Kiểm soát đủ 4 yếu tố tạo 601 tầng, nhiều tầng rất nhỏ; khoảng tin cậy rộng.
 
 ## E8. Ảnh hưởng của vài kênh lớn
 
@@ -142,7 +144,7 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 - **Cách giải.** Trên 398 video trending của `is_clean`: phân phối số giờ tới chart, hạng cao nhất, giờ lần đầu thấy trên chart, so đặc điểm với video không trending.
 - **Kết quả.**
   - Video đăng giờ hành chính lên chart nhanh hơn một chút (trung vị 21,4 giờ so với 24,9 giờ); hạng cao nhất gần như giống nhau (110 so với 101,5). Giờ đăng ảnh hưởng tới **có lọt hay không**, ít ảnh hưởng tới tốc độ, thứ hạng.
-  - Video trending: thời lượng trung vị **22,4 phút** (video thường 1,9 phút), 82% dài trên 10 phút, 0,5% Shorts, 0% Tin tức / Thể thao, **74% là Trò chơi hoặc Âm nhạc** (video thường 12%), kênh lớn hơn (360.000 so với 184.000 subscriber).
+  - Video trending: thời lượng trung vị **22,4 phút** (video thường 1,9 phút), 82% dài trên 10 phút, 1,3% Shorts (video thường 57,5%), 0% Tin tức / Thể thao, **74% là Trò chơi hoặc Âm nhạc** (video thường 12%), kênh lớn hơn (360.000 so với 184.000 subscriber).
 - **Hạn chế.** Giờ lần đầu thấy trên chart dồn vào 4h, 14h, 18h, nhưng không tách được nhịp cập nhật của YouTube khỏi việc crawler bắt bù sau khi tắt. Không dùng để chọn giờ đăng.
 
 ## E10. Nhãn danh mục
@@ -150,16 +152,16 @@ v_video_features ─► data/processed/video_features_full_2026-11-01.csv ─►
 - **Vấn đề.** Kết luận của chart chính có đúng với chart theo từng danh mục không?
 - **Cách giải.** Lặp lại E7 cho `is_trending_category` trên `is_clean_category`.
 - **Kết quả.**
-  - Chart danh mục chọn video **ngược với chart chính**: Shorts có tỉ lệ cao nhất (3,85%), Tin tức vẫn lọt được (1,3%).
-  - Tỉ số nghỉ / hành chính: 1,12 (thô) → 1,02 (kiểm soát ngày) → **0,97 (CI 0,85–1,11)** khi kiểm soát đủ. **Giờ đăng không tạo khác biệt** với chart danh mục.
+  - Chart danh mục chọn video **ngược với chart chính**: Shorts có tỉ lệ cao nhất (3,74%, so với 2,59% ở video trên 10 phút), Tin tức vẫn lọt được (1,3%).
+  - Tỉ số nghỉ / hành chính: 1,12 (thô) → 1,02 (kiểm soát ngày) → **0,98 (CI 0,85–1,12)** khi kiểm soát đủ. **Giờ đăng không tạo khác biệt** với chart danh mục.
 
 ## E11. Kết luận và đề xuất cho Report 4
 
 - **Trả lời câu hỏi.**
-  1. **Chart chính:** giờ nghỉ, rõ nhất **chiều tối 16–18h ngày thường**, có **lợi thế vừa phải**. Thô gần 2 lần; sau kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần** (khoảng tin cậy trên 1); kiểm soát thêm thời lượng còn khoảng **1,25 lần**, không còn chắc chắn.
+  1. **Chart chính:** giờ nghỉ, rõ nhất **chiều tối 16–18h ngày thường**, có **lợi thế vừa phải**. Thô gần 2 lần; sau kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần** (khoảng tin cậy trên 1); kiểm soát thêm thời lượng, hoặc chỉ xét video có khả năng trending, còn khoảng **1,2–1,3 lần**, không còn chắc chắn.
   2. **Chart danh mục:** không có khác biệt.
   3. **Loại video quan trọng hơn giờ đăng nhiều:** chart chính gần như chỉ chứa video dài, không Shorts, không tin tức.
-- **Giới hạn.** Crawler chỉ có mặt khoảng 59% số giờ; tập sạch đến từ khoảng 13 ngày, nặng về thứ 2; tỉ lệ nền giảm theo thời gian; chỉ theo dõi các kênh trong danh sách; `channel_subscribers` lấy tại lần chụp mới nhất; dữ liệu quan sát nên **không kết luận nhân quả**.
+- **Giới hạn.** Crawler chỉ có mặt khoảng 59% số giờ; tập sạch đến từ 14 ngày, nặng về thứ 2; Shorts xác định theo thời lượng (≤ 3 phút) nên chỉ là ước lượng; tỉ lệ nền giảm theo thời gian; chỉ theo dõi các kênh trong danh sách; `channel_subscribers` lấy tại lần chụp mới nhất; dữ liệu quan sát nên **không kết luận nhân quả**.
 - **Đề xuất cho Report 4 (Logistic Regression, XGBoost).**
   - Nhãn `is_trending_main` trên `is_clean`; khoảng 1% nhãn 1, nên dùng `class_weight` và đánh giá bằng **PR-AUC**, recall, F1.
   - Feature: khung giờ (`time_slot`, `slot_detail`, giờ, cuối tuần); loại video (thời lượng, danh mục, Shorts, livestream); quy mô kênh (`log10_subs`); **đợt / ngày đăng** (vì tỉ lệ nền thay đổi). Bỏ `definition`, `caption`.

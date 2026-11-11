@@ -109,7 +109,7 @@ Thu thập từ **24/09 đến 24/10/2026** (máy crawl VN). Nhãn chỉ gắn c
 ## 6. Phạm vi và hạn chế
 
 - **Định nghĩa trending đã thay đổi.** Từ 21/07/2025, chart `mostPopular` của YouTube Data API chỉ lấy video từ các bảng xếp hạng Âm nhạc, Phim và Game. Chart chính trong dữ liệu gần như không có Shorts, Tin tức, Thể thao.
-- **Crawler chạy trên máy cá nhân, chỉ có mặt khoảng 59% số giờ.** Tập sạch chỉ đến từ khoảng 13 ngày ra mắt, nặng về thứ 2; kết luận phải kiểm soát ngày đăng.
+- **Crawler chạy trên máy cá nhân, chỉ có mặt khoảng 59% số giờ.** Tập sạch chỉ đến từ 14 ngày ra mắt, nặng về thứ 2; kết luận phải kiểm soát ngày đăng.
 - **Nhóm kênh không đại diện cho toàn bộ YouTube Việt Nam.** Kênh đến từ trending và từ tìm kiếm theo từ khoá, nên thiên về kênh đang hoạt động.
 - **Không có dislike.** API không trả số dislike từ 2021; đề tài không dùng biến này.
 - **Số subscriber là số tại lần chụp kênh mới nhất**, đã bị YouTube làm tròn.

@@ -23,7 +23,8 @@ Dữ liệu JP/US (nếu muốn có): mỗi thành viên thêm 1 slide **mô t�
 | Cohort (video mới, theo dõi đủ 72 giờ) | 156.311 video, 1.029 trending chính |
 | Tập sạch nhãn chính `is_clean` (độ phủ ≥ 0,6) | 40.531 video, 398 trending |
 | Tập sạch nhãn danh mục `is_clean_category` (độ phủ ≥ 0,3) | 39.669 video, 1.283 trending |
-| Kết quả chính (chart chính, nghỉ / hành chính) | Thô 1,91 → 1,47 (CI 1,04–2,02) sau kiểm soát ngày, quy mô kênh, danh mục → 1,26 (CI 0,95–1,71) thêm thời lượng |
+| Kết quả chính (chart chính, nghỉ / hành chính) | Thô 1,91 → 1,47 (CI 1,04–2,02) sau kiểm soát ngày, quy mô kênh, danh mục → 1,24 (CI 0,93–1,69) thêm thời lượng |
+| Định nghĩa Shorts | Video ≤ 3 phút (giới hạn của YouTube từ 15/10/2024), ước lượng theo thời lượng |
 | Kết quả chart danh mục | Khoảng 1,0 sau kiểm soát (không khác biệt) |
 
 ## 3. Dàn ý slide (khoảng 33 slide, 50–60 phút)
@@ -62,13 +63,13 @@ Dữ liệu JP/US (nếu muốn có): mỗi thành viên thêm 1 slide **mô t�
 |---|---|---|
 | 1 | Cách đọc kết quả: tỉ lệ, khoảng tin cậy, tỉ số | Đầu Rmd |
 | 2 | Tập sạch không lệch khung giờ nhưng lệch ngày (thứ 2 chiếm 36%) | A |
-| 3 | Giờ đăng và loại video: nhiều nhất 17–19h, Shorts 36%, 10 kênh chiếm 12% | B |
+| 3 | Giờ đăng và loại video: nhiều nhất 17–19h, Shorts (≤ 3 phút) 57%, 10 kênh chiếm 12% | B |
 | 4 | Tỉ lệ trending theo giờ: đỉnh 16–18h | C1 |
 | 5 | Hành chính và nghỉ; tối ngày thường cao nhất | C2, C3 |
 | 6 | Dữ liệu bất thường: tỉ lệ nền giảm 1,32% → 0,44%; so trong cùng nhóm ngày | C4 |
 | 7 | Độ vững theo ngưỡng độ phủ | C5 |
 | 8 | Video "không thể trending": Shorts, Tin tức, Thể thao | D1, D2 |
-| 9 | Sau kiểm soát: 1,91 → 1,47 → 1,26 | D3, D5 |
+| 9 | Sau kiểm soát: 1,91 → 1,47 → 1,24 | D3, D5 |
 | 10 | Không do vài kênh lớn | D4 |
 | 11 | Chân dung video trending | E |
 | 12 | Chart danh mục: không khác biệt | F |
@@ -94,5 +95,5 @@ Kết luận chung, Q&A.
 | Vì sao bỏ cả video đã trending khi độ phủ thấp? | Tỉ lệ = trending / tổng; nhãn 0 cùng hoàn cảnh bị loại thì nhãn 1 cũng phải loại, nếu không tỉ lệ bị thổi lên | Thành viên 2 |
 | Vì sao ngưỡng 0,6 và 0,3? | Bảng độ nhạy: kết luận không đổi ở mọi ngưỡng; chart danh mục chụp mỗi 3 giờ, tỉ lệ đi ngang từ khoảng 0,2 | Thành viên 2 |
 | Dữ liệu JP/US dùng để làm gì? | Chỉ mô tả; chart chụp quá thưa, không tính được tỉ lệ | Thành viên 1 |
-| Tỉ lệ 1,9 lần có đáng tin không? | Bị phóng đại bởi loại video; sau kiểm soát còn khoảng 1,25–1,5 lần | BanNH |
+| Tỉ lệ 1,9 lần có đáng tin không? | Bị phóng đại bởi loại video; sau kiểm soát còn khoảng 1,2–1,5 lần, không còn chắc chắn khi kiểm soát thêm thời lượng | BanNH |
 | Có kết luận được giờ đăng **gây ra** trending không? | Không, dữ liệu quan sát; chỉ nói được "đi kèm" | BanNH |

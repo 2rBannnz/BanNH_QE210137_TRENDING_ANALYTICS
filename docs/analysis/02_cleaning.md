@@ -275,7 +275,7 @@ Nhãn 1 luôn đúng: đã thấy trên chart thì chắc chắn có trending. N
   | `slot_detail` | Tách giờ nghỉ thành tối ngày thường (17–24h), đêm/sáng ngày thường (0–8h), cuối tuần |
   | `day_part`, `is_weekend` | Đêm / sáng / chiều / tối; thứ 7 hoặc CN |
   | `subs_group`, `log10_subs` | < 10k, 10k–100k, 100k–1M, 1M–10M, > 10M; `log10(1 + subscriber)` |
-  | `duration_group`, `is_short` | 6 nhóm thời lượng; ≤ 60 giây là Shorts |
+  | `duration_group`, `is_short` | 6 nhóm thời lượng; `is_short` = ≤ 3 phút (giới hạn Shorts từ 15/10/2024; ước lượng theo thời lượng vì API không cho biết video dọc hay ngang) |
 
 - **Cài đặt.** `configs/features.sql` (`v_video_features`).
 
