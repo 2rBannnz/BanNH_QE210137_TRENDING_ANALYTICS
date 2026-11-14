@@ -138,7 +138,7 @@ YouTube Data API v3
    PostgreSQL              v_video_features (bảng phân tích)
         │
         ▼
- [3] Phân tích & mô hình   notebooks/1_Exploration.ipynb (làm sạch), notebooks/3_EDA.Rmd (RStudio)
+ [3] Phân tích & mô hình   notebooks/1_Exploration.ipynb (làm sạch), notebooks/3_EDA.Rmd (RStudio), notebooks/2_Modeling.ipynb (mô hình)
 ```
 
 | Container | Vai trò | Địa chỉ |
@@ -223,11 +223,11 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 ├── src/
 │   ├── ingestion/            # crawler.py + 7 job trong jobs/
 │   ├── processing/cleaner.py # Loader MinIO -> PostgreSQL
-│   ├── modeling/             # Mô hình (Report 4)
+│   ├── modeling/             # Report 4: split.py (train/test theo kênh), features.py, logistic.py (LR), model.py (XGBoost)
 │   └── utils/                # config, minio_client, sync_local, sync_state, import_raw_zip, data_stats
 ├── data/raw/sample/          # Mẫu raw (mỗi job 1 file)
 ├── data/processed/           # Mẫu CSV của các bảng (bản đầy đủ không commit)
-├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA)
+├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA), 2_Modeling.ipynb (mô hình)
 ├── docs/                     # HOW_TO_SETUP.md, analysis/ (giải thích từng bài toán)
 └── reports/                  # Báo cáo, data dictionary
 ```
@@ -239,5 +239,5 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 | 1 | Giả thuyết, kiến trúc | Đang hoàn thiện |
 | 2 | Pipeline Crawl → MinIO → DB | Xong: 7 job chạy tự động, loader nạp tăng dần, `checks.sql` 0 lỗi |
 | 3 | Làm sạch, EDA, Data Dictionary | Phân tích xong (notebook làm sạch, `3_EDA.html`, `reports/data_dictionary.md`); báo cáo và slide đang làm |
-| 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Chưa bắt đầu |
+| 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Đang làm: tách train/test theo kênh và Logistic Regression xong (OR giờ nghỉ / hành chính 1,19, CI 0,81–1,72: chưa đủ bằng chứng bác bỏ H₀; `docs/analysis/04_modeling.md`); XGBoost và báo cáo đang làm |
 | 5 | Đóng gói Docker Compose, bảo vệ | Chưa bắt đầu |

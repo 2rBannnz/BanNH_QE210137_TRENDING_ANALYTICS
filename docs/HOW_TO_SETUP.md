@@ -309,6 +309,16 @@ Knit EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (http://localhost:8787) rồi
 MSYS_NO_PATHCONV=1 docker exec -w /home/rstudio/project/notebooks ady201m_rstudio Rscript -e 'rmarkdown::render("3_EDA.Rmd")'
 ```
 
+### 5.5. Mô hình (Report 4)
+
+Thư viện: `uv sync` (scikit-learn, đủ cho Logistic Regression); ai chạy XGBoost thì `uv sync --group xgboost`. Notebook đọc bản CSV đóng băng ở mục 5.4 và danh sách kênh test `data/processed/test_channels.csv` (đã commit, không tạo lại). Chạy lại toàn bộ (khoảng 5 phút, chủ yếu do bootstrap):
+
+```bash
+uv run jupyter nbconvert --to notebook --execute --inplace notebooks/2_Modeling.ipynb
+```
+
+Code: `src/modeling/split.py` (tách train/test theo kênh, lọc video có khả năng trending), `features.py` (bộ feature, cột cấm), `logistic.py` (LR), `model.py` (XGBoost). Giải thích từng bài toán: `docs/analysis/04_modeling.md`.
+
 ## 6. Theo dõi hằng ngày
 
 Log nằm ở `logs/crawl_<ngày>.log` (crawler) và `logs/load_db.log` (loader).

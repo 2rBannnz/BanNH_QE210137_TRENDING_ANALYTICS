@@ -1,6 +1,6 @@
 # Phần 3 — EDA: thời điểm vàng đăng video
 
-[← Phần 2 — Làm sạch](02_cleaning.md) · [Tổng quan](README.md)
+[← Phần 2 — Làm sạch](02_cleaning.md) · [Tổng quan](README.md) · [Phần 4 — Mô hình →](04_modeling.md)
 
 **Mục tiêu của phần:** trả lời câu hỏi "đăng video trong **giờ hành chính** (08:00–16:59, thứ 2–6, giờ VN) hay **giờ nghỉ** thì dễ lọt **Top Trending** YouTube Việt Nam hơn", và kiểm tra câu trả lời đó có đứng vững khi loại bỏ các yếu tố khác đi kèm giờ đăng hay không.
 

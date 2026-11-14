@@ -41,6 +41,16 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 | BanNH | `uv sync` |
 | phat, duc | `uv sync --group xgboost` |
 
+**Code dùng chung đã có (14/11, BanNH), không viết lại:**
+
+| File | Dùng gì |
+|---|---|
+| `src/modeling/split.py` | `doc_tap_sach()`, `tach_train_test()`, `loc_co_kha_nang()`: đọc CSV, tách theo kênh test đã cố định, lọc tập chính |
+| `src/modeling/features.py` | `them_bien()` (thêm `ngay`, `cat_gop`, `log10_duration`), `BO_A_XGB`, `BO_B_XGB`, `COT_CAM`, `kiem_tra_cot_cam()` |
+| `src/modeling/logistic.py` | `chia_fold()` (cùng fold với LR), `chon_nguong()`, `chi_so()` (đủ chỉ số mục 5), `mo_hinh_moc()` |
+| `data/processed/lr_test_predictions.csv` | Dự đoán LR trên tập test: `video_id`, `channel_id`, `y`, `p_lr_c`, `p_lr_b`, `du_doan_lr_c`, `nguong_lr_c` |
+| `notebooks/2_Modeling.ipynb` | Phần 1 (LR) đã chạy; Phần 2, 3 để trống cho phat, duc |
+
 ## 4. Feature (đã chốt)
 
 | Bộ | Feature | Ghi chú |
@@ -62,7 +72,7 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
    - Kênh test chọn trên toàn bộ `is_clean`, rồi mới lọc `loc_co_kha_nang()`, nên tập chính và tập đầy đủ dùng cùng kênh.
    - Tập chính: train 8.152 video, 1.100 kênh, 315 trending (3,86%); test 2.079 video, 291 kênh, 78 trending (3,75%).
    - Tập đầy đủ: train 32.423 video, 318 trending; test 8.108 video, 80 trending.
-   - **Chỉ chấm trên tập test một lần, khi cả 2 mô hình đã chốt.**
+   - **Mỗi mô hình chấm tập test đúng một lần**, sau khi đã chốt tham số và ngưỡng bằng CV trên train. LR đã chấm 14/11 (notebook mục 1.6); XGBoost chấm khi phat chốt xong.
 2. **Tinh chỉnh tham số:** trên 80% còn lại, `StratifiedGroupKFold` 5 fold theo kênh, chọn tham số theo **PR-AUC trung bình**.
 3. **Mất cân bằng nhãn:**
    - LR dùng `class_weight="balanced"`.
@@ -79,21 +89,19 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 
 | Người | Phần việc | Sản phẩm |
 |---|---|---|
-| **BanNH** | Quy tắc H₀ và feature (mục 2, 4: đã chốt). **Logistic Regression**: OR khung giờ với bộ A, B, C; CI bootstrap theo kênh; kiểm tra độ vững (toàn bộ `is_clean` với `is_short` và thời lượng làm biến kiểm soát; nhãn chart danh mục trên `is_clean_category`). **Kết luận H₀**, ghép báo cáo và notebook | Phần LR và kết luận trong `2_Modeling.ipynb`; `docs/analysis/04_modeling.md`; `reports/Report_4_*.pdf` |
-| **phat** | **Làm trước, các bạn khác phụ thuộc** (thư viện đã thêm sẵn, xem mục 3): viết `src/modeling/model.py`: dựng bộ A/B/C từ `doc_tap_sach()` (đọc dữ liệu và tách test đã có ở `split.py`), chặn cột cấm, hàm chia fold CV, hàm tính đủ chỉ số mục 5, mô hình mốc. Sau đó: **XGBoost — huấn luyện**: tinh chỉnh tham số trong CV (`max_depth`, `learning_rate`, `n_estimators`, `min_child_weight`, `subsample`), `scale_pos_weight`, chọn ngưỡng theo F1; giao cho duc bộ tham số đã chốt | `model.py`; phần huấn luyện XGB trong notebook; mục "Dữ liệu và phương pháp" của báo cáo |
-| **duc** | **XGBoost — giải thích và đánh giá** (dùng tham số phat đã chốt): so bộ C và bộ C bỏ thời gian (ΔPR-AUC từng fold, trung bình và khoảng dao động), permutation importance. **Bảng so sánh 4 dòng** (2 mốc, LR, XGB) trên tập test, kèm confusion matrix. Kiểm tra phụ: train đợt 1 (25/09–05/10), test đợt 2 (10, 12, 19/10) | Phần giải thích XGB và so sánh trong notebook; mục "Đánh giá và so sánh" của báo cáo |
+| **BanNH** | **Xong 14/11:** quy tắc H₀, feature, tách train/test, code dùng chung; **Logistic Regression**: OR khung giờ bộ A 1,36 (1,00–1,88), bộ C **1,19 (0,81–1,72)**, 5 kiểm tra độ vững đều chứa 1, ΔPR-AUC khi bỏ khung giờ ≈ 0 → **chưa đủ bằng chứng bác bỏ H₀** (`docs/analysis/04_modeling.md` M1–M6). **Còn lại:** kết luận chung sau khi có XGBoost, ghép notebook và báo cáo | Phần 1 của `2_Modeling.ipynb`; `04_modeling.md`; `reports/Report_4_*.pdf` |
+| **phat** | **XGBoost — huấn luyện**, viết trong `src/modeling/model.py` và Phần 2 của notebook. Dữ liệu: `train`, `test` của notebook (tập chính); feature `BO_A_XGB + BO_B_XGB` (cột phân loại `time_slot`, `slot_detail`, `ngay`, `cat_gop` → one-hot hoặc `enable_categorical`); fold: `lg.chia_fold(train)` để cùng fold với LR. Tinh chỉnh trong CV theo PR-AUC: `max_depth` (2–4), `learning_rate`, `n_estimators`, `min_child_weight`, `subsample`; `scale_pos_weight` ≈ 25 tính trong fold; ngưỡng theo F1 trên OOF (`lg.chon_nguong`). Chấm test **một lần** bằng `lg.chi_so()`; ghi `data/processed/xgb_test_predictions.csv` cùng cột như file của LR. Giao duc bộ tham số đã chốt | `model.py`; phần huấn luyện XGB trong notebook; mục "Dữ liệu và phương pháp" của báo cáo |
+| **duc** | **XGBoost — giải thích và đánh giá** (dùng tham số phat đã chốt): so bộ C và bộ C bỏ `BO_A_XGB` trên cùng fold (ΔPR-AUC từng fold, trung bình, khoảng dao động; LR cho −0,002, từ −0,013 tới +0,005), permutation importance trên OOF. **Bảng so sánh 4 dòng** (2 mốc, LR bộ C, XGB) trên tập test từ `lr_test_predictions.csv` và `xgb_test_predictions.csv`, kèm confusion matrix (các dòng mốc và LR đã có ở notebook mục 1.6). Kiểm tra phụ: train đợt 1 (25/09–05/10), test đợt 2 (10, 12, 19/10) | Phần 3 của notebook; mục "Đánh giá và so sánh" của báo cáo |
 
 ## 7. Thứ tự và mốc
 
 | # | Việc | Người | Cần có trước |
 |---|---|---|---|
-| 1 | Quy tắc H₀, feature, quy ước validation, tách train/test (`split.py`) | BanNH | Xong |
-| 2 | `model.py` (thư viện đã có) | phat | 1 |
-| 3a | Logistic Regression | BanNH | 1 |
-| 3b | XGBoost: tinh chỉnh tham số, chọn ngưỡng | phat | 2 |
-| 3c | XGBoost: so có / bỏ thời gian, permutation importance | duc | 3b |
-| 4 | Bảng so sánh trên tập test | duc | 3a, 3c |
-| 5 | Kết luận H₀, ghép notebook, `04_modeling.md`, báo cáo PDF | BanNH | 4 |
+| 1 | Quy tắc H₀, feature, quy ước validation, tách train/test, code dùng chung | BanNH | Xong 12–14/11 |
+| 2 | Logistic Regression, kết luận phần LR (`04_modeling.md` M1–M6) | BanNH | Xong 14/11 |
+| 3 | XGBoost: `model.py`, tinh chỉnh tham số, ngưỡng, chấm test, `xgb_test_predictions.csv` | phat | Bắt đầu được ngay |
+| 4 | XGBoost: so có / bỏ thời gian, permutation importance; bảng so sánh; kiểm tra đợt | duc | 3 |
+| 5 | Kết luận chung (M9), ghép notebook, báo cáo PDF | BanNH | 4 |
 
 Hạn từng mốc: ____ (nhóm điền).
 
@@ -114,4 +122,5 @@ Không sửa phần của người khác trong `model.py`; cần thêm hàm thì
 | Vì sao bỏ Shorts, Tin tức, Thể thao? | Gần như không bao giờ lên chart chính (5/23.093, 0/9.632, 0/3.021); giữ lại chỉ làm loãng so sánh khung giờ. Kết luận trên tập đầy đủ giống nhau (EDA D3 1,24 so với D5 1,28) | BanNH |
 | Vì sao chia train/test theo kênh? | Video cùng kênh giống nhau; chia ngẫu nhiên thì mô hình "nhớ kênh", điểm bị thổi lên | phat |
 | Vì sao 2 mô hình mà chỉ LR quyết định H₀? | LR cho OR có chiều, độ lớn, khoảng tin cậy; XGBoost kiểm tra độ vững | BanNH |
+| Kết quả LR nói gì? | OR 1,19 (CI 0,81–1,72) sau kiểm soát: chưa đủ bằng chứng bác bỏ H₀; CI rộng nên không loại trừ được lợi thế tới 1,7 lần | BanNH |
 | Mô hình chứng minh giờ đăng gây ra trending không? | Không, dữ liệu quan sát; chỉ nói "đi kèm" khi đã kiểm soát các yếu tố khác | BanNH |
