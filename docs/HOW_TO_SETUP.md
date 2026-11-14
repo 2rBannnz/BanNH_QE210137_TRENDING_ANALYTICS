@@ -319,6 +319,16 @@ uv run jupyter nbconvert --to notebook --execute --inplace notebooks/2_Modeling.
 
 Code: `src/modeling/split.py` (tách train/test theo kênh, lọc video có khả năng trending), `features.py` (bộ feature, cột cấm), `logistic.py` (LR), `model.py` (XGBoost). Giải thích từng bài toán: `docs/analysis/04_modeling.md`.
 
+### 5.6. Dựng PDF báo cáo
+
+Báo cáo viết bằng Markdown trong `reports/Report_N_*.md` (ảnh ở `reports/img/`, kiểu ở `reports/style.css`). Dựng PDF khổ A4 bằng Microsoft Edge chạy ẩn, không cần cài thêm thư viện:
+
+```bash
+python -m src.utils.build_reports
+```
+
+Sửa file `.md` rồi chạy lại là PDF cập nhật. Hình EDA trong `reports/img/eda_*.png` được trích từ `notebooks/3_EDA.html`; knit lại Rmd thì trích lại.
+
 ## 6. Theo dõi hằng ngày
 
 Log nằm ở `logs/crawl_<ngày>.log` (crawler) và `logs/load_db.log` (loader).
