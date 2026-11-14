@@ -31,13 +31,13 @@ SO_FOLD = 5
 DANH_MUC_BO = ("Tin tức và Chính trị", "Thể thao")
 
 
-def doc_tap_sach(path=CSV_DONG_BANG) -> pd.DataFrame:
-    """Đọc CSV đóng băng, chuyển cột t/f về bool, lọc is_clean."""
+def doc_tap_sach(path=CSV_DONG_BANG, cot_loc="is_clean") -> pd.DataFrame:
+    """Đọc CSV đóng băng, chuyển cột t/f về bool, lọc theo cờ sạch (is_clean hoặc is_clean_category)."""
     df = pd.read_csv(path, low_memory=False)
     cot_bool = [c for c in df.columns if df[c].dropna().isin(["t", "f"]).all() and df[c].notna().any()]
     for c in cot_bool:
         df[c] = df[c].map({"t": True, "f": False})
-    return df[df["is_clean"].fillna(False)].reset_index(drop=True)
+    return df[df[cot_loc].fillna(False)].reset_index(drop=True)
 
 
 def loc_co_kha_nang(df: pd.DataFrame) -> pd.DataFrame:
