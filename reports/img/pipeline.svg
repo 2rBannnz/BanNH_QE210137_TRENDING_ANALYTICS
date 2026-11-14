@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" font-family="Segoe UI, Arial, sans-serif" font-size="12">
+  <defs>
+    <marker id="p" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1b1e24"/>
+    </marker>
+  </defs>
+  <style>
+    .st{fill:#ffffff;stroke:#16324f;stroke-width:1.4;rx:8}
+    .lake{fill:#eaf2fa;stroke:#1d5c8c;stroke-width:1.6;rx:8}
+    .h{font-weight:600;fill:#16324f;font-size:13px}
+    .s{font-size:11px;fill:#4a4f57}
+    .n{font-size:11px;fill:#c42b20;font-weight:600}
+    .arrow{stroke:#1b1e24;stroke-width:1.5;fill:none;marker-end:url(#p)}
+    .lbl{font-size:10.5px;fill:#1b1e24}
+  </style>
+
+  <text x="12" y="22" class="h" font-size="14">Luồng dữ liệu: từ YouTube API tới bảng phân tích</text>
+
+  <rect x="12" y="50" width="150" height="150" class="st"/>
+  <text x="87" y="74" text-anchor="middle" class="h">[1] Crawl</text>
+  <text x="87" y="94" text-anchor="middle" class="s">7 job: trending,</text>
+  <text x="87" y="109" text-anchor="middle" class="s">trending_category,</text>
+  <text x="87" y="124" text-anchor="middle" class="s">channels, discover,</text>
+  <text x="87" y="139" text-anchor="middle" class="s">uploads, stats, backfill</text>
+  <text x="87" y="162" text-anchor="middle" class="s">src/ingestion/</text>
+  <text x="87" y="184" text-anchor="middle" class="n">24/09 → 24/10/2026</text>
+
+  <rect x="195" y="50" width="160" height="150" class="lake"/>
+  <text x="275" y="74" text-anchor="middle" class="h">[2] MinIO — raw</text>
+  <text x="275" y="94" text-anchor="middle" class="s">bucket youtube-raw</text>
+  <text x="275" y="109" text-anchor="middle" class="s">raw/youtube/&lt;job&gt;/</text>
+  <text x="275" y="124" text-anchor="middle" class="s">dt=&lt;ngày&gt;/&lt;crawler&gt;_</text>
+  <text x="275" y="139" text-anchor="middle" class="s">&lt;HHMMSS&gt;_pNN.json</text>
+  <text x="275" y="162" text-anchor="middle" class="s">nguyên văn, không sửa</text>
+  <text x="275" y="184" text-anchor="middle" class="n">241.202 file · 3 máy</text>
+
+  <rect x="388" y="50" width="150" height="150" class="st"/>
+  <text x="463" y="74" text-anchor="middle" class="h">[3] Loader</text>
+  <text x="463" y="94" text-anchor="middle" class="s">cleaner.py</text>
+  <text x="463" y="109" text-anchor="middle" class="s">parse envelope,</text>
+  <text x="463" y="124" text-anchor="middle" class="s">chuẩn hoá kiểu, upsert</text>
+  <text x="463" y="139" text-anchor="middle" class="s">theo lô 500 file</text>
+  <text x="463" y="162" text-anchor="middle" class="s">1 transaction / lô</text>
+  <text x="463" y="184" text-anchor="middle" class="n">chạy lại không trùng</text>
+
+  <rect x="571" y="50" width="160" height="150" class="lake"/>
+  <text x="651" y="74" text-anchor="middle" class="h">[4] PostgreSQL</text>
+  <text x="651" y="94" text-anchor="middle" class="s">9 bảng gốc, 4 khoá ngoại</text>
+  <text x="651" y="109" text-anchor="middle" class="s">schema.sql</text>
+  <text x="651" y="129" text-anchor="middle" class="s">view: v_cohort,</text>
+  <text x="651" y="144" text-anchor="middle" class="s">v_video_labels,</text>
+  <text x="651" y="159" text-anchor="middle" class="s">v_video_features</text>
+  <text x="651" y="184" text-anchor="middle" class="n">156.311 video cohort VN</text>
+
+  <rect x="764" y="50" width="224" height="150" class="st"/>
+  <text x="876" y="74" text-anchor="middle" class="h">[5] Phân tích</text>
+  <text x="876" y="94" text-anchor="middle" class="s">CSV đóng băng 01/11 (47 cột)</text>
+  <text x="876" y="112" text-anchor="middle" class="s">1_Exploration.ipynb: làm sạch</text>
+  <text x="876" y="127" text-anchor="middle" class="s">3_EDA.Rmd (RStudio): EDA</text>
+  <text x="876" y="142" text-anchor="middle" class="s">2_Modeling.ipynb: LR, XGBoost</text>
+  <text x="876" y="164" text-anchor="middle" class="n">is_clean: 40.531 video,</text>
+  <text x="876" y="180" text-anchor="middle" class="n">398 trending chính</text>
+
+  <path d="M162,125 L195,125" class="arrow"/>
+  <path d="M355,125 L388,125" class="arrow"/>
+  <path d="M538,125 L571,125" class="arrow"/>
+  <path d="M731,125 L764,125" class="arrow"/>
+
+  <text x="12" y="240" class="h">Ranh giới trách nhiệm</text>
+  <text x="12" y="260" class="s">Phần 1 (Crawl) kết thúc khi response API nằm nguyên văn trên MinIO: không gắn nhãn, không làm sạch.</text>
+  <text x="12" y="277" class="s">Phần 2 (Làm sạch) kết thúc khi có bảng phân tích v_video_features kèm cờ is_clean. Mọi lựa chọn (bỏ backfill, cohort, nhãn, cờ) nằm ở view, không xoá dữ liệu gốc.</text>
+  <text x="12" y="294" class="s">Phần 3 (EDA) và Phần 4 (Mô hình) chỉ đọc bản CSV đóng băng, không sửa dữ liệu. Nhãn trending được gắn sau khi đủ 72 giờ quan sát, không gắn lúc crawl.</text>
+  <text x="12" y="318" class="s">Mỗi dòng của bảng phân tích = một video mới đăng của kênh Việt Nam đang theo dõi; cột chính: giờ ra mắt (giờ VN), khung giờ, 2 nhãn trending, biến kiểm soát, độ phủ crawler.</text>
+</svg>

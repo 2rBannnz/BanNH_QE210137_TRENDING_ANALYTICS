@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" font-family="Segoe UI, Arial, sans-serif" font-size="11.5">
+  <defs>
+    <marker id="fk" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c42b20"/>
+    </marker>
+    <marker id="lg" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7078"/>
+    </marker>
+  </defs>
+  <style>
+    .tb{fill:#ffffff;stroke:#16324f;stroke-width:1.3}
+    .hd{fill:#e8eef4}
+    .name{font-weight:700;fill:#16324f;font-size:12.5px}
+    .col{fill:#1b1e24;font-family:Consolas, Courier New, monospace;font-size:10.5px}
+    .pk{font-weight:700}
+    .cnt{fill:#c42b20;font-size:10px}
+    .fk{stroke:#c42b20;stroke-width:1.5;fill:none;marker-end:url(#fk)}
+    .lg{stroke:#6b7078;stroke-width:1.2;fill:none;stroke-dasharray:5 4;marker-end:url(#lg)}
+    .lbl{font-size:10px;fill:#c42b20}
+    .lbl2{font-size:10px;fill:#6b7078}
+  </style>
+
+  <text x="12" y="20" class="name" font-size="14">Lược đồ PostgreSQL: 9 bảng, 4 khoá ngoại (đỏ). Nét đứt xám = liên kết logic, không đặt khoá ngoại có chủ ý. Số dòng: 01/11/2026.</text>
+
+  <!-- categories -->
+  <g transform="translate(20,45)">
+    <rect width="200" height="92" class="tb"/><rect width="200" height="22" class="hd"/>
+    <text x="8" y="15" class="name">categories</text><text x="192" y="15" text-anchor="end" class="cnt">32</text>
+    <text x="8" y="40" class="col pk">category_id (PK)</text>
+    <text x="8" y="56" class="col">title</text>
+    <text x="8" y="72" class="col">assignable</text>
+  </g>
+
+  <!-- channels -->
+  <g transform="translate(270,45)">
+    <rect width="230" height="172" class="tb"/><rect width="230" height="22" class="hd"/>
+    <text x="8" y="15" class="name">channels</text><text x="222" y="15" text-anchor="end" class="cnt">19.219 (68 kênh tạm)</text>
+    <text x="8" y="40" class="col pk">channel_id (PK)</text>
+    <text x="8" y="56" class="col">title, custom_url, country</text>
+    <text x="8" y="72" class="col">default_language, published_at</text>
+    <text x="8" y="88" class="col">subscriber_count, hidden_subscriber</text>
+    <text x="8" y="104" class="col">video_count, view_count</text>
+    <text x="8" y="120" class="col">uploads_playlist</text>
+    <text x="8" y="136" class="col">first_seen_at, last_seen_at</text>
+    <text x="8" y="152" class="col">first_source_job, is_stub</text>
+  </g>
+
+  <!-- discover_candidates -->
+  <g transform="translate(550,45)">
+    <rect width="200" height="108" class="tb"/><rect width="200" height="22" class="hd"/>
+    <text x="8" y="15" class="name">discover_candidates</text><text x="192" y="15" text-anchor="end" class="cnt">28.911</text>
+    <text x="8" y="40" class="col pk">channel_id (PK)</text>
+    <text x="8" y="56" class="col pk">method (PK)</text>
+    <text x="8" y="72" class="col pk">query_or_parent (PK)</text>
+    <text x="8" y="88" class="col pk">captured_at (PK)</text>
+  </g>
+
+  <!-- raw_files -->
+  <g transform="translate(790,45)">
+    <rect width="195" height="140" class="tb"/><rect width="195" height="22" class="hd"/>
+    <text x="8" y="15" class="name">raw_files</text><text x="187" y="15" text-anchor="end" class="cnt">241.202</text>
+    <text x="8" y="40" class="col pk">object_key (PK)</text>
+    <text x="8" y="56" class="col">job, endpoint, crawler_id</text>
+    <text x="8" y="72" class="col">captured_at, crawl_time_utc</text>
+    <text x="8" y="88" class="col">page_index, n_items</text>
+    <text x="8" y="104" class="col">loaded_at</text>
+    <text x="8" y="126" class="cnt">nhật ký MinIO → DB (lineage)</text>
+  </g>
+
+  <!-- videos -->
+  <g transform="translate(270,290)">
+    <rect width="230" height="204" class="tb"/><rect width="230" height="22" class="hd"/>
+    <text x="8" y="15" class="name">videos</text><text x="222" y="15" text-anchor="end" class="cnt">439.870</text>
+    <text x="8" y="40" class="col pk">video_id (PK)</text>
+    <text x="8" y="56" class="col">channel_id (FK), category_id (FK)</text>
+    <text x="8" y="72" class="col">published_at, actual_start_time</text>
+    <text x="8" y="88" class="col">scheduled_start_time</text>
+    <text x="8" y="104" class="col">title, description, tags[]</text>
+    <text x="8" y="120" class="col">duration_s, definition, caption</text>
+    <text x="8" y="136" class="col">live_broadcast_content</text>
+    <text x="8" y="152" class="col">default_language, default_audio_language</text>
+    <text x="8" y="168" class="col">first_seen_at, last_seen_at</text>
+    <text x="8" y="184" class="col">first_source_job</text>
+  </g>
+
+  <!-- playlist_items -->
+  <g transform="translate(790,290)">
+    <rect width="195" height="124" class="tb"/><rect width="195" height="22" class="hd"/>
+    <text x="8" y="15" class="name">playlist_items</text><text x="187" y="15" text-anchor="end" class="cnt">7.967.633</text>
+    <text x="8" y="40" class="col pk">video_id (PK)</text>
+    <text x="8" y="56" class="col pk">playlist_id (PK)</text>
+    <text x="8" y="72" class="col pk">captured_at (PK)</text>
+    <text x="8" y="88" class="col">video_published_at</text>
+    <text x="8" y="104" class="col">source_job</text>
+  </g>
+
+  <!-- video_stats -->
+  <g transform="translate(20,540)">
+    <rect width="215" height="124" class="tb"/><rect width="215" height="22" class="hd"/>
+    <text x="8" y="15" class="name">video_stats</text><text x="207" y="15" text-anchor="end" class="cnt">2.723.654</text>
+    <text x="8" y="40" class="col pk">video_id (PK, FK)</text>
+    <text x="8" y="56" class="col pk">captured_at (PK)</text>
+    <text x="8" y="72" class="col pk">source_job, region_code (PK)</text>
+    <text x="8" y="88" class="col">view_count</text>
+    <text x="8" y="104" class="col">like_count, comment_count</text>
+  </g>
+
+  <!-- trending_snapshots -->
+  <g transform="translate(270,540)">
+    <rect width="230" height="124" class="tb"/><rect width="230" height="22" class="hd"/>
+    <text x="8" y="15" class="name">trending_snapshots</text><text x="222" y="15" text-anchor="end" class="cnt">180.459</text>
+    <text x="8" y="40" class="col pk">video_id (PK, FK)</text>
+    <text x="8" y="56" class="col pk">captured_at (PK)</text>
+    <text x="8" y="72" class="col pk">source, category_id (PK)</text>
+    <text x="8" y="88" class="col pk">region_code (PK)</text>
+    <text x="8" y="104" class="col">page_index, position</text>
+  </g>
+
+  <!-- video_sources -->
+  <g transform="translate(550,540)">
+    <rect width="200" height="108" class="tb"/><rect width="200" height="22" class="hd"/>
+    <text x="8" y="15" class="name">video_sources</text><text x="192" y="15" text-anchor="end" class="cnt">1.621.859</text>
+    <text x="8" y="40" class="col pk">video_id (PK)</text>
+    <text x="8" y="56" class="col pk">source_job (PK)</text>
+    <text x="8" y="72" class="col pk">region_code (PK)</text>
+    <text x="8" y="88" class="col">first_captured_at</text>
+  </g>
+
+  <!-- Khoá ngoại -->
+  <path d="M300,290 L300,240 L120,240 L120,137" class="fk"/>
+  <text x="128" y="232" class="lbl">fk_videos_category</text>
+  <path d="M385,290 L385,217" class="fk"/>
+  <text x="392" y="258" class="lbl">fk_videos_channel</text>
+  <path d="M128,540 L128,520 L330,520 L330,494" class="fk"/>
+  <text x="136" y="514" class="lbl">fk_video_stats_video</text>
+  <path d="M385,540 L385,494" class="fk"/>
+  <text x="392" y="522" class="lbl">fk_trending_video</text>
+
+  <!-- Liên kết logic -->
+  <path d="M650,540 L650,520 L440,520 L440,494" class="lg"/>
+  <text x="520" y="514" class="lbl2">video_id (không FK)</text>
+  <path d="M790,352 L500,352" class="lg"/>
+  <text x="560" y="346" class="lbl2">video_id: 136 nghìn video cũ chỉ có trong playlist</text>
+  <path d="M550,99 L500,99" class="lg"/>
+  <text x="505" y="93" class="lbl2" text-anchor="end"></text>
+  <text x="552" y="170" class="lbl2">channel_id → channels (không FK)</text>
+
+  <text x="12" y="690" class="lbl2">region_code (VN / JP / US) = khu vực của máy crawl, nằm trong khoá chính của video_sources, video_stats, trending_snapshots. Mọi view phân tích lọc region_code = 'VN'.</text>
+</svg>

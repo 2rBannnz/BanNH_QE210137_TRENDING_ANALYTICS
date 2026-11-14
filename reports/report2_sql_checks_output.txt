@@ -1,0 +1,151 @@
+SET
+=== 1. Số dòng mỗi bảng ===
+        bang         | so_dong 
+---------------------+---------
+ raw_files           |  165393
+ categories          |      32
+ channels            |    7382
+ videos              |  244451
+ video_sources       |  924378
+ video_stats         | 1906571
+ trending_snapshots  |  140640
+ playlist_items      | 5438378
+ discover_candidates |    4976
+
+=== 2. File raw đã nạp theo job (lineage MinIO -> DB) ===
+           job           | so_file | so_item |        lan_dau         |        lan_cuoi        
+-------------------------+---------+---------+------------------------+------------------------
+ backfill/playlist_items |    4470 |  199312 | 2026-09-25 07:30:01+00 | 2026-10-21 07:30:05+00
+ backfill/videos         |    2405 |  115928 | 2026-09-25 07:30:01+00 | 2026-10-21 07:30:05+00
+ channels                |     783 |   37583 | 2026-09-24 16:54:32+00 | 2026-10-21 02:00:09+00
+ discover/channels       |      98 |    4823 | 2026-09-26 07:30:05+00 | 2026-09-29 07:30:06+00
+ discover/search         |     104 |    5202 | 2026-09-25 07:30:01+00 | 2026-09-29 07:30:06+00
+ discover/sections       |     204 |    1469 | 2026-09-25 07:30:01+00 | 2026-09-25 07:30:01+00
+ stats                   |   18873 |  935374 | 2026-09-24 16:54:32+00 | 2026-10-21 15:10:14+00
+ trending                |    1546 |   76489 | 2026-09-24 16:52:49+00 | 2026-10-21 15:00:04+00
+ trending_category       |    1413 |   65546 | 2026-10-09 08:23:57+00 | 2026-10-21 13:40:17+00
+ uploads/playlist_items  |  121017 | 5243825 | 2026-09-24 16:54:32+00 | 2026-10-21 02:00:09+00
+ uploads/videos          |   14480 |  723133 | 2026-09-24 16:54:32+00 | 2026-10-20 14:00:09+00
+
+=== 3. Null ở cột quan trọng (videos) ===
+ null_channel_id | null_published_at | null_title | null_category_id | null_duration 
+-----------------+-------------------+------------+------------------+---------------
+               0 |                 0 |          0 |                0 |            75
+
+=== 4. Null số liệu tương tác (video_stats) — like/comment có thể bị chủ kênh ẩn ===
+  tong   | null_view | pct_null_like | pct_null_comment 
+---------+-----------+---------------+------------------
+ 1906571 |       180 |          5.27 |             2.42
+
+=== 5. [LỖI] Trùng khoá chính (đã có PK chặn, kiểm tra lại cho chắc) ===
+    bang     | so_trung 
+-------------+----------
+ videos      |        0
+ channels    |        0
+ video_stats |        0
+
+=== 6. Lần chụp trước giờ đăng video, tách theo nguyên nhân ===
+       nguyen_nhan       | so_dong | lech_lon_nhat_gio 
+-------------------------+---------+-------------------
+ livestream/premiere     |   12259 |            556.90
+ video thuong, lech < 1h |    1438 |              0.75
+
+=== 7. View giảm giữa hai lần chụp liên tiếp (YouTube đôi khi lọc view ảo) ===
+ so_lan_giam | so_cap_so_sanh | pct_giam 
+-------------+----------------+----------
+       29110 |        1661948 |    1.752
+
+=== 8. Kênh / danh mục TẠM (chưa có thông tin từ API) và video bị tạm bỏ khỏi phân tích ===
+ kenh_tam | video_cua_kenh_tam | danh_muc_tam 
+----------+--------------------+--------------
+       26 |                 26 |            0
+
+=== 8b. [LỖI] Vi phạm khoá ngoại (mong đợi = 0; đã có FK chặn, kiểm tra lại cho chắc) ===
+ videos_khong_kenh | videos_khong_danh_muc | stats_khong_video | trending_khong_video 
+-------------------+-----------------------+-------------------+----------------------
+                 0 |                     0 |                 0 |                    0
+
+=== 8c. Danh sách khoá ngoại trong schema ===
+        bang        |     cot     | tham_chieu_bang | tham_chieu_cot |   constraint_name    
+--------------------+-------------+-----------------+----------------+----------------------
+ trending_snapshots | video_id    | videos          | video_id       | fk_trending_video
+ video_stats        | video_id    | videos          | video_id       | fk_video_stats_video
+ videos             | category_id | categories      | category_id    | fk_videos_category
+ videos             | channel_id  | channels        | channel_id     | fk_videos_channel
+
+=== 9. Khoảng trống giữa hai lần chụp trending chính (giờ) — crawler có chạy liên tục? ===
+ so_lan_chup | gap_trung_vi_gio | gap_lon_nhat_gio | so_gap_tren_3h 
+-------------+------------------+------------------+----------------
+         398 |             1.00 |            94.00 |             28
+
+=== 10. Số video mới (uploads) theo ngày đăng (giờ VN) ===
+ ngay_dang  | so_video 
+------------+----------
+ 2026-09-20 |      888
+ 2026-09-21 |     1758
+ 2026-09-22 |     2123
+ 2026-09-23 |     2313
+ 2026-09-24 |     2430
+ 2026-09-25 |     2577
+ 2026-09-26 |     2661
+ 2026-09-27 |     2484
+ 2026-09-28 |     2712
+ 2026-09-29 |     2804
+ 2026-09-30 |     2675
+ 2026-10-01 |     2628
+ 2026-10-02 |     2790
+ 2026-10-03 |     3975
+ 2026-10-04 |     5433
+ 2026-10-05 |     6344
+ 2026-10-06 |     7160
+ 2026-10-07 |     7311
+ 2026-10-08 |     7365
+ 2026-10-09 |     7300
+ 2026-10-10 |     7310
+ 2026-10-11 |     6832
+ 2026-10-12 |     7577
+ 2026-10-13 |     8158
+ 2026-10-14 |     8482
+ 2026-10-15 |     8499
+ 2026-10-16 |     8271
+ 2026-10-17 |     8286
+ 2026-10-18 |     7905
+ 2026-10-19 |     7639
+ 2026-10-20 |     6615
+ 2026-10-21 |        9
+
+=== 11. So sánh CÓ / KHÔNG CÓ backfill ===
+              chi_so              | co_backfill | khong_backfill 
+----------------------------------+-------------+----------------
+ video khac nhau                  |      244451 |         212451
+ dong video_stats                 |     1906571 |        1790569
+ kenh co video                    |        3879 |           3853
+ video tung len trending chinh    |        1508 |           1505
+ video tung len trending danh muc |        4990 |           4967
+ video chi co o backfill          |       32000 |              0
+
+=== 12. Cohort và tỉ lệ 2 nhãn (cửa sổ 72h) ===
+ cohort | pos_main | pct_main | cohort_co_nhan_category | pos_category | pct_category | ca_hai_nhan 
+--------+----------+----------+-------------------------+--------------+--------------+-------------
+ 137264 |      964 |    0.702 |                   74208 |         2009 |        2.707 |         127
+
+=== 13. Tỉ lệ trending chính theo khung giờ đăng ===
+ is_office_hours | so_video | pos_main | pct_main 
+-----------------+----------+----------+----------
+ f               |    93620 |      767 |    0.819
+ t               |    43644 |      197 |    0.451
+
+=== 14. Top 10 danh mục theo số video trending chính trong cohort ===
+ category_id |    category_title    | so_video | pos_main | pos_category 
+-------------+----------------------+----------+----------+--------------
+          20 | Trò chơi             |     7499 |      496 |          125
+          10 | Âm nhạc              |     6295 |      249 |           26
+          22 | Mọi người và Blog    |    51623 |      160 |         1069
+          24 | Giải trí             |    20704 |       47 |          376
+          19 | Du lịch và Sự kiện   |      760 |        7 |           18
+           1 | Phim và Hoạt ảnh     |     2249 |        3 |           36
+          17 | Thể thao             |     8761 |        1 |          118
+          27 | Giáo dục             |     1994 |        1 |           30
+          25 | Tin tức và Chính trị |    27090 |        0 |          117
+           2 | Ô tô và Xe cộ        |     4071 |        0 |           17
+
