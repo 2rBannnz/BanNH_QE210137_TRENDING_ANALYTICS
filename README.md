@@ -229,15 +229,15 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 ├── data/processed/           # Mẫu CSV của các bảng (bản đầy đủ không commit)
 ├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA), 2_Modeling.ipynb (mô hình)
 ├── docs/                     # HOW_TO_SETUP.md, analysis/ (giải thích từng bài toán)
-└── reports/                  # Báo cáo, data dictionary
+└── reports/                  # Report_N_*.md + .pdf (dựng bằng src/utils/build_reports.py), data dictionary, img/
 ```
 
 ## 11. Tiến độ
 
 | Report | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Giả thuyết, kiến trúc | Đang hoàn thiện |
-| 2 | Pipeline Crawl → MinIO → DB | Xong: 7 job chạy tự động, loader nạp tăng dần, `checks.sql` 0 lỗi |
-| 3 | Làm sạch, EDA, Data Dictionary | Phân tích xong (notebook làm sạch, `3_EDA.html`, `reports/data_dictionary.md`); báo cáo và slide đang làm |
+| 1 | Giả thuyết, kiến trúc | Xong: `reports/Report_1_Proposal.pdf` |
+| 2 | Pipeline Crawl → MinIO → DB | Xong: 7 job chạy tự động, loader nạp tăng dần, `checks.sql` 0 lỗi; `reports/Report_2_DataEngineering.pdf` |
+| 3 | Làm sạch, EDA, Data Dictionary | Xong: notebook làm sạch, `3_EDA.html`, `reports/data_dictionary.md`, `reports/Report_3_EDA.pdf` |
 | 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Đang làm: tách train/test theo kênh và Logistic Regression xong (OR giờ nghỉ / hành chính 1,19, CI 0,81–1,72: chưa đủ bằng chứng bác bỏ H₀; `docs/analysis/04_modeling.md`); XGBoost và báo cáo đang làm |
 | 5 | Đóng gói Docker Compose, bảo vệ | Chưa bắt đầu |
