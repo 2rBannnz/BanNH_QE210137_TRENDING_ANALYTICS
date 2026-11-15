@@ -189,10 +189,11 @@ def in_pdf(html_path: Path) -> Path:
     profile = Path(tempfile.gettempdir()) / "edge-pdf-profile"
     cmd = [str(EDGE), "--headless=new", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}",
            "--no-pdf-header-footer", "--virtual-time-budget=8000", f"--print-to-pdf={pdf}", html_path.resolve().as_uri()]
-    subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
-    if not pdf.exists():
-        raise RuntimeError(f"Edge không tạo được {pdf}")
-    return pdf
+    for _ in range(3):   # Edge headless thỉnh thoảng thoát mà chưa ghi file; thử lại là được
+        subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
+        if pdf.exists():
+            return pdf
+    raise RuntimeError(f"Edge không tạo được {pdf}")
 
 
 def main(args):
