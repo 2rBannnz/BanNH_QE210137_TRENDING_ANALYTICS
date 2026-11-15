@@ -65,3 +65,6 @@ snapshots/
 
 # File tạm của Jupyter
 .ipynb_checkpoints/
+
+# Gói nộp bài (raw zip, PDF tổng kết): không commit
+submission/
