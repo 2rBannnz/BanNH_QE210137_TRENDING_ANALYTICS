@@ -99,9 +99,11 @@ Lý do LR là mô hình chính: chỉ LR cho ra một con số có chiều và �
 |---|---|---|---|
 | 1 | Quy tắc H₀, feature, quy ước validation, tách train/test, code dùng chung | BanNH | Xong 12–14/11 |
 | 2 | Logistic Regression, kết luận phần LR (`04_modeling.md` M1–M6) | BanNH | Xong 14/11 |
-| 3 | XGBoost: `model.py`, tinh chỉnh tham số, ngưỡng, chấm test, `xgb_test_predictions.csv` | phat | Bắt đầu được ngay |
-| 4 | XGBoost: so có / bỏ thời gian, permutation importance; bảng so sánh; kiểm tra đợt | duc | 3 |
-| 5 | Kết luận chung (M9), ghép notebook, báo cáo PDF | BanNH | 4 |
+| 3 | XGBoost: `model.py`, tinh chỉnh tham số, ngưỡng (`xgb_best_params.json`) | phat | Xong 14/11 |
+| 4 | XGBoost: so có / bỏ thời gian, permutation importance; bảng so sánh trên test; kiểm tra đợt (`xgb_eval.py`) | duc | Xong 14/11 |
+| 5 | Kết luận chung (M9), notebook Phần 2–4, `reports/Report_4_Modeling.pdf` | BanNH | Xong 15/11 |
+
+**Kết quả chốt (15/11):** chưa đủ bằng chứng bác bỏ H₀ (OR 1,19; CI 0,81–1,72); XGBoost cùng chiều (`time_slot` importance ≈ 0; bỏ nhóm thời gian ΔPR-AUC +0,022 ± 0,041); test PR-AUC XGBoost 0,228, LR 0,154, mốc 0,038. Chi tiết: `docs/analysis/04_modeling.md`, `reports/Report_4_Modeling.pdf`.
 
 Hạn từng mốc: ____ (nhóm điền).
 
