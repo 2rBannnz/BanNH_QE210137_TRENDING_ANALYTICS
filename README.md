@@ -1,7 +1,13 @@
 # Thời điểm vàng trên YouTube Việt Nam
 
-**Đồ án ADY201m — Advanced Data Engineering & Science Bootcamp, FPT University**
-Chủ đề 4: Trending Content (YouTube) · Thành viên: BanNH – QE210137
+**Đồ án ADY201m — AI, Data Science with Python & SQL, FPT University**
+Đề tài 4: Trending Content (YouTube)
+
+| Thành viên | Vai trò |
+|---|---|
+| BanNH — QE210137 | Trưởng nhóm; máy crawl VN; pipeline, làm sạch, EDA, Logistic Regression, kết luận |
+| Nguyễn Lê Minh Đức | Máy crawl JP (`duc`); XGBoost: giải thích và so sánh |
+| Lâm Duy Phát | Máy crawl US (`phat`); XGBoost: huấn luyện và tinh chỉnh |
 
 > Upload video vào **giờ hành chính** hay **giờ nghỉ ngơi** thì dễ lọt Top Trending hơn?
 
@@ -10,7 +16,8 @@ Repo này chứa toàn bộ pipeline: thu thập dữ liệu từ YouTube Data A
 | Tài liệu | Nội dung |
 |---|---|
 | [`docs/HOW_TO_SETUP.md`](docs/HOW_TO_SETUP.md) | Cài đặt, lịch chạy tự động, quota, quy ước dữ liệu, xử lý sự cố |
-| [`docs/analysis/`](docs/analysis/README.md) | Giải thích từng bài toán của 3 phần Crawl / Làm sạch / EDA, kèm số liệu thật |
+| [`docs/analysis/`](docs/analysis/README.md) | Giải thích từng bài toán của 4 phần Crawl / Làm sạch / EDA / Mô hình, kèm số liệu thật |
+| [`reports/`](reports/) | `Report_1_Proposal`, `Report_2_DataEngineering`, `Report_3_EDA`, `Report_4_Modeling` (mỗi report có `.md` và `.pdf`) |
 | [`reports/data_dictionary.md`](reports/data_dictionary.md) | Ý nghĩa từng bảng, từng cột |
 
 ---
@@ -203,6 +210,10 @@ Exit code của crawler: `0` thành công · `1` lỗi · `2` hết quota. Log �
 
 EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Knit. Notebook đọc bản đóng băng `data/processed/video_features_full_2026-11-01.csv` (xem `docs/HOW_TO_SETUP.md` mục 5.4).
 
+Mô hình: chạy `notebooks/2_Modeling.ipynb` (Logistic Regression và kết luận), `notebooks/2_Modeling_phat_XGB.ipynb` (huấn luyện XGBoost), `notebooks/2_Modeling_XGBoost.ipynb` (giải thích XGBoost); cài đặt ở `docs/HOW_TO_SETUP.md` mục 5.5.
+
+Dựng PDF báo cáo: `python -m src.utils.build_reports` (xem `docs/HOW_TO_SETUP.md` mục 5.6).
+
 ## 10. Cấu trúc thư mục
 
 ```
@@ -211,8 +222,9 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 ├── docker-compose.yml        # MinIO, PostgreSQL, pgAdmin, app, RStudio
 ├── docker/app/Dockerfile     # Container crawler + loader
 ├── docker/rstudio/Dockerfile # Container RStudio cho EDA
-├── requirements.txt, pyproject.toml
+├── requirements.txt, pyproject.toml, uv.lock
 ├── .env.example              # Mẫu biến môi trường
+├── start.bat                 # Menu chạy nhanh trên Windows
 ├── configs/
 │   ├── db_config.json        # Kết nối DB, file SQL, crawler_regions
 │   ├── schema.sql            # 9 bảng, khoá ngoại, region_code
@@ -223,13 +235,34 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 ├── src/
 │   ├── ingestion/            # crawler.py + 7 job trong jobs/
 │   ├── processing/cleaner.py # Loader MinIO -> PostgreSQL
-│   ├── modeling/             # Report 4: split.py, features.py, logistic.py (LR), model.py + xgb_eval.py (XGBoost)
-│   └── utils/                # config, minio_client, sync_local, sync_state, import_raw_zip, data_stats
+│   ├── modeling/
+│   │   ├── split.py          # Tách train/test theo kênh, lọc tập mô hình
+│   │   ├── features.py       # Bộ biến, cột cấm (rò rỉ)
+│   │   ├── logistic.py       # Logistic Regression: OR, bootstrap theo kênh, dự đoán
+│   │   ├── model.py          # XGBoost: biến, fold, tinh chỉnh, đánh giá, mô hình mốc
+│   │   └── xgb_eval.py       # XGBoost: so có / bỏ biến thời gian, permutation importance
+│   └── utils/                # config, minio_client, sync_local, sync_state, import_raw_zip,
+│                             # data_stats, completed_videos, build_reports (Markdown -> PDF/Word)
 ├── data/raw/sample/          # Mẫu raw (mỗi job 1 file)
-├── data/processed/           # Mẫu CSV của các bảng (bản đầy đủ không commit)
-├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA), 2_Modeling*.ipynb (LR, XGBoost)
-├── docs/                     # HOW_TO_SETUP.md, analysis/ (giải thích từng bài toán)
-└── reports/                  # Report_N_*.md + .pdf (dựng bằng src/utils/build_reports.py), data dictionary, img/
+├── data/processed/           # Mẫu CSV các bảng (bản đầy đủ không commit), test_channels.csv,
+│                             # lr_test_predictions.csv, xgb_best_params.json
+├── notebooks/
+│   ├── 1_Exploration.ipynb   # Làm sạch, độ phủ crawler (Report 3)
+│   ├── 3_EDA.Rmd, 3_EDA.html # EDA bằng RStudio (Report 3)
+│   ├── 2_Modeling.ipynb      # Logistic Regression và kết luận giả thuyết (Report 4)
+│   ├── 2_Modeling_phat_XGB.ipynb  # XGBoost: huấn luyện, tinh chỉnh, chọn ngưỡng (Report 4)
+│   └── 2_Modeling_XGBoost.ipynb   # XGBoost: giải thích và so sánh trên tập test (Report 4)
+├── docs/
+│   ├── HOW_TO_SETUP.md       # Cài đặt, lịch chạy, xử lý sự cố
+│   ├── analysis/             # 01_crawl, 02_cleaning, 03_eda, 04_modeling
+│   └── TEAM_HANDOVER_REPORT{2,3,4}.md, SCRIPT_EDA_REPORT3.md  # Phân công trong nhóm
+└── reports/
+    ├── Report_1_Proposal.md/.pdf
+    ├── Report_2_DataEngineering.md/.pdf, report2_sql_checks_output.txt
+    ├── Report_3_EDA.md/.pdf, data_dictionary.md
+    ├── Report_4_Modeling.md/.pdf
+    ├── TongKet_gioi_thieu.md # Phần mở đầu của báo cáo tổng kết (gộp Report 1–4)
+    └── style.css, img/
 ```
 
 ## 11. Tiến độ
@@ -240,4 +273,4 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 | 2 | Pipeline Crawl → MinIO → DB | Xong: 7 job chạy tự động, loader nạp tăng dần, `checks.sql` 0 lỗi; `reports/Report_2_DataEngineering.pdf` |
 | 3 | Làm sạch, EDA, Data Dictionary | Xong: notebook làm sạch, `3_EDA.html`, `reports/data_dictionary.md`, `reports/Report_3_EDA.pdf` |
 | 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Xong: Logistic Regression (OR giờ nghỉ / hành chính 1,19, CI 0,81–1,72) và XGBoost (test PR-AUC 0,228) → **chưa đủ bằng chứng bác bỏ H₀**; `docs/analysis/04_modeling.md`, `reports/Report_4_Modeling.pdf` |
-| 5 | Đóng gói Docker Compose, bảo vệ | Chưa bắt đầu |
+| 5 | Đóng gói Docker Compose, bảo vệ | `docker-compose.yml` 5 service đã chạy suốt kỳ; demo và bảo vệ chưa tới lịch |
