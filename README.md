@@ -223,11 +223,11 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 ├── src/
 │   ├── ingestion/            # crawler.py + 7 job trong jobs/
 │   ├── processing/cleaner.py # Loader MinIO -> PostgreSQL
-│   ├── modeling/             # Report 4: split.py (train/test theo kênh), features.py, logistic.py (LR), model.py (XGBoost)
+│   ├── modeling/             # Report 4: split.py, features.py, logistic.py (LR), model.py + xgb_eval.py (XGBoost)
 │   └── utils/                # config, minio_client, sync_local, sync_state, import_raw_zip, data_stats
 ├── data/raw/sample/          # Mẫu raw (mỗi job 1 file)
 ├── data/processed/           # Mẫu CSV của các bảng (bản đầy đủ không commit)
-├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA), 2_Modeling.ipynb (mô hình)
+├── notebooks/                # 1_Exploration.ipynb (làm sạch), 3_EDA.Rmd/.html (EDA), 2_Modeling*.ipynb (LR, XGBoost)
 ├── docs/                     # HOW_TO_SETUP.md, analysis/ (giải thích từng bài toán)
 └── reports/                  # Report_N_*.md + .pdf (dựng bằng src/utils/build_reports.py), data dictionary, img/
 ```
@@ -239,5 +239,5 @@ EDA: mở `notebooks/3_EDA.Rmd` trong RStudio (`http://localhost:8787`) rồi Kn
 | 1 | Giả thuyết, kiến trúc | Xong: `reports/Report_1_Proposal.pdf` |
 | 2 | Pipeline Crawl → MinIO → DB | Xong: 7 job chạy tự động, loader nạp tăng dần, `checks.sql` 0 lỗi; `reports/Report_2_DataEngineering.pdf` |
 | 3 | Làm sạch, EDA, Data Dictionary | Xong: notebook làm sạch, `3_EDA.html`, `reports/data_dictionary.md`, `reports/Report_3_EDA.pdf` |
-| 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Đang làm: tách train/test theo kênh và Logistic Regression xong (OR giờ nghỉ / hành chính 1,19, CI 0,81–1,72: chưa đủ bằng chứng bác bỏ H₀; `docs/analysis/04_modeling.md`); XGBoost và báo cáo đang làm |
+| 4 | Hai mô hình phân loại, chấp nhận / bác bỏ giả thuyết | Xong: Logistic Regression (OR giờ nghỉ / hành chính 1,19, CI 0,81–1,72) và XGBoost (test PR-AUC 0,228) → **chưa đủ bằng chứng bác bỏ H₀**; `docs/analysis/04_modeling.md`, `reports/Report_4_Modeling.pdf` |
 | 5 | Đóng gói Docker Compose, bảo vệ | Chưa bắt đầu |

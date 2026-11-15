@@ -1,0 +1,16 @@
+{
+  "feature_set": "C",
+  "model_type": "tree",
+  "random_state": 42,
+  "best_params": {
+    "max_depth": 4,
+    "learning_rate": 0.03,
+    "n_estimators": 200,
+    "min_child_weight": 5,
+    "subsample": 0.8
+  },
+  "threshold": 0.7773813009262085,
+  "pr_auc_cv_mean": 0.23984379689936555,
+  "pr_auc_cv_std": 0.08263589264960004,
+  "scale_pos_weight_note": "tính lại trong từng fold: số nhãn 0 / số nhãn 1"
+}

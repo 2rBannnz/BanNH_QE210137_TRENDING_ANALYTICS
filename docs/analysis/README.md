@@ -23,7 +23,7 @@ Tài liệu chia toàn bộ công việc hiện có của đồ án thành **4 p
 - Số liệu database lấy ngày 21/10 (Report 2). Số liệu EDA lấy ngày 23/10 (Report 3).
 - **30/10:** gộp thêm dữ liệu JP (crawler `duc`) và US (`phat`) của 2 thành viên vào cùng DB (P20–P22); tập phân tích VN chốt lại: cohort 156.311, `is_clean` 40.531 (398 trending chính). EDA cũ bỏ, làm lại theo kế hoạch cuối [02_cleaning.md](02_cleaning.md#kế-hoạch-từ-đây-tới-eda).
 - **01/11:** nhãn danh mục có độ phủ riêng (ô 3 giờ, ngưỡng 0,3) và tập sạch riêng `is_clean_category`: 39.669 video, 1.283 trending danh mục (P15). Dữ liệu chốt ở lần chụp cuối 24/10, không crawl thêm.
-- **14/11:** Report 4. Tập mô hình chính = video "có khả năng trending" (bỏ Shorts, Tin tức, Thể thao): 10.231 video, 393 trending; tách test theo kênh (675 kênh). Logistic Regression xong (M1–M6); XGBoost đang làm.
+- **14/11:** Report 4. Tập mô hình chính = video "có khả năng trending" (bỏ Shorts, Tin tức, Thể thao): 10.231 video, 393 trending; tách test theo kênh (675 kênh). Logistic Regression (M1–M6) và XGBoost của phat, duc (M7–M8) xong; kết luận chung M9 ngày 15/11.
 - Ký hiệu "≈" là giá trị đọc từ biểu đồ.
 
 ---
@@ -137,7 +137,7 @@ Notebook: `notebooks/2_Modeling.ipynb`; code `src/modeling/`. Quy tắc kết lu
 1. **Phần 1:** thu được 165.393 file raw (9,32 GB) của máy VN. Nhưng crawler chạy trên máy cá nhân nên **chỉ khoảng 50% số giờ có lần chụp trending**, ít nhất vào 10–13h. Đây là điểm yếu lớn nhất của dữ liệu. Ngày 30/10 gộp thêm 65.179 file của máy JP và US (P20–P21).
 2. **Phần 2:** biến điểm yếu đó thành **cột đo được** (`coverage_24h`, `coverage_72h`; chart danh mục có `coverage_cat_*` riêng) và lọc theo ngưỡng 0,6 cho nhãn chính, 0,3 cho nhãn danh mục. Mốc 01/11: cohort VN 156.311 video còn **40.531 video sạch cho nhãn chính (398 trending)** và **39.669 video sạch cho nhãn danh mục (1.283 trending)**.
 3. **Phần 3:** với **chart chính**, đăng ngoài giờ hành chính (rõ nhất 16–18h ngày thường) dễ lọt trending hơn: thô gấp 1,9 lần, sau khi kiểm soát ngày đăng, quy mô kênh, danh mục còn khoảng **1,5 lần**, thêm thời lượng còn khoảng 1,25 lần và không còn chắc chắn. Với **chart danh mục** không có khác biệt. **Loại video** (dài, không Shorts, không tin tức) quan trọng hơn giờ đăng nhiều. Shorts = video ≤ 3 phút (giới hạn của YouTube từ 15/10/2024), ước lượng theo thời lượng.
-4. **Phần 4 (đang làm):** trên nhóm video có khả năng trending, Logistic Regression cho OR giờ nghỉ / giờ hành chính **1,19 (CI 95% 0,81–1,72)** sau khi kiểm soát ngày đăng, quy mô kênh, thể loại, thời lượng → **chưa đủ bằng chứng bác bỏ H₀**; bỏ khung giờ khỏi mô hình, PR-AUC không đổi. Vững qua 5 kiểm tra. Chờ XGBoost xác nhận chiều.
+4. **Phần 4:** trên nhóm video có khả năng trending, Logistic Regression cho OR giờ nghỉ / giờ hành chính **1,19 (CI 95% 0,81–1,72)** sau khi kiểm soát ngày đăng, quy mô kênh, thể loại, thời lượng → **chưa đủ bằng chứng bác bỏ H₀**; vững qua 5 kiểm tra. XGBoost cùng chiều (`time_slot` importance ≈ 0; bỏ cả nhóm thời gian ΔPR-AUC +0,022 ± 0,041, nhỏ hơn 2–5 lần so với thể loại, thời lượng, quy mô kênh) và dự đoán tốt hơn LR (test PR-AUC 0,228 so với 0,154; mốc 0,038). Không có "thời điểm vàng" theo nghĩa giờ hành chính so với giờ nghỉ; loại video quyết định.
 
 ## Điểm lệch giữa tài liệu cũ và code hiện tại
 

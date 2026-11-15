@@ -149,14 +149,54 @@ video_features_full_2026-11-01.csv ─► split.py (tập sạch, tách test the
 
 ## M7. XGBoost: huấn luyện và tinh chỉnh (phat)
 
-*Chưa có. Dùng cùng `train`, `test`, `folds`, `BO_A_XGB`, `BO_B_XGB` và `chi_so()`; `scale_pos_weight` ≈ 25 trên tập chính.*
+- **Vấn đề.** Mô hình thứ hai, khác họ với LR, để kiểm tra độ vững và để so khả năng dự đoán.
+- **Cách giải.**
+  - Cùng `train` / `test` (tập chính, M1) và **cùng fold** với LR (`StratifiedGroupKFold` theo kênh, `random_state=42`).
+  - Bộ C kiểu cây: 12 cột gồm 5 cột thời gian (`time_slot`, `slot_detail`, `publish_hour_vn`, `publish_dow_vn`, `is_weekend`), ngày đăng, danh mục gộp (4 nhóm + Khác), `log10_subs`, `log10(duration_s)`, `is_live_or_premiere`, `title_length`, `n_tags`; one-hot cho 4 cột nhóm, fit trong từng fold.
+  - `scale_pos_weight` = số nhãn 0 / số nhãn 1, tính trong từng fold (≈ 24,9).
+  - Lưới 48 tổ hợp: `max_depth` 3/4/6, `learning_rate` 0,03/0,1, `n_estimators` 200/400, `min_child_weight` 1/5, `subsample` 0,8/1,0; chọn theo PR-AUC trung bình trên 5 fold; ngưỡng theo F1 trên điểm ngoài fold.
+- **Cài đặt.** `src/modeling/model.py` (`build_features`, `cv_folds`, `tune_xgb`, `evaluate`, `baselines`); `data/processed/xgb_best_params.json`; `notebooks/2_Modeling_phat_XGB.ipynb`.
+- **Kết quả.**
+  - Tham số chốt: `max_depth = 4`, `learning_rate = 0,03`, `n_estimators = 200`, `min_child_weight = 5`, `subsample = 0,8`. PR-AUC CV **0,240 ± 0,083** (từng fold), 0,212 khi gộp điểm ngoài fold; ROC-AUC 0,834. Ngưỡng F1: 0,777.
+  - **Cả 48 tổ hợp đều nằm trong 1 độ lệch chuẩn của tổ hợp tốt nhất** (10 tổ hợp đầu chỉ chênh 0,009): kết quả không phụ thuộc vào một cấu hình may mắn.
+  - Điểm ngoài fold ở ngưỡng F1: precision 0,279, recall 0,349, F1 0,310 (bắt được 110/315 video trending); precision ở top 1% là 0,402, gấp khoảng 10 lần tỉ lệ nền 3,86%. Accuracy 0,940 **thấp hơn** mô hình luôn đoán "không" (0,961), đúng như dự đoán ở handover mục 5.
+- **Hạn chế.** Mỗi fold chỉ có khoảng 63 video trending nên PR-AUC từng fold dao động 0,10–0,37; ngưỡng chọn trên điểm ngoài fold có thể lệch khi áp cho mô hình huấn luyện lại trên toàn bộ train.
 
 ## M8. XGBoost: khung giờ đóng góp bao nhiêu; so sánh mô hình (duc)
 
-*Chưa có. Theo quy tắc: XGBoost cùng chiều với LR (bỏ biến thời gian không làm PR-AUC giảm) → kết luận vững.*
+- **Vấn đề.** (1) Biến thời gian giúp XGBoost dự đoán tốt hơn không? (2) Yếu tố nào quan trọng nhất? (3) Hai mô hình và hai mô hình mốc đứng ở đâu trên tập test?
+- **Cách giải.**
+  - **Có / bỏ thời gian:** chạy bộ C và bộ C bỏ cả 5 cột thời gian, cùng fold, cùng tham số; ΔPR-AUC = C − C bỏ thời gian, từng fold.
+  - **Permutation importance** trên phần validation của từng fold (không dùng tập test), 10 lần hoán vị mỗi cột; thêm dòng "NHÓM: thời gian" hoán vị cả 5 cột thời gian cùng lúc vì chúng tương quan với nhau.
+  - **Kiểm tra theo thời gian:** train đợt 1 (25/09–05/10), test đợt 2 (10, 12, 19/10), chỉ dùng kênh train, bỏ biến ngày đăng, ngưỡng chọn bằng CV trong đợt 1.
+  - **Bảng so sánh trên tập test**, chấm đúng một lần: 2 mô hình mốc, LR bộ C (điểm từ `lr_test_predictions.csv`, khớp theo `video_id` và kiểm tra nhãn), XGBoost với tham số và ngưỡng của M7.
+- **Cài đặt.** `src/modeling/xgb_eval.py`; `notebooks/2_Modeling_XGBoost.ipynb`.
+- **Kết quả.**
+  - **Có / bỏ thời gian:** PR-AUC bộ C 0,233, bộ C bỏ thời gian 0,211; **ΔPR-AUC trung bình +0,022, độ lệch chuẩn 0,041, từ −0,011 tới +0,091; 3/5 fold dương**, fold 3 (+0,091) chi phối. Chênh lệch nhỏ hơn độ nhiễu giữa các fold.
+  - **Permutation importance** (PR-AUC giảm khi hoán vị): danh mục **0,141**; thời lượng **0,076**; quy mô kênh **0,072**; nhóm thời gian 0,031 (trong đó `publish_hour_vn` 0,029; `time_slot` −0,0005; `slot_detail` và `is_weekend` 0,000; `publish_dow_vn` 0,002); `n_tags` 0,015; ngày đăng 0,008; livestream 0,006; độ dài tiêu đề 0,002.
+  - **Đợt 1 → đợt 2** (train 6.054 video, 266 trending, 4,39%; test 2.098 video, 49 trending, 2,34%): PR-AUC 0,262, ROC-AUC 0,912, recall 0,612, precision 0,201, F1 0,303 (mốc PR-AUC 0,023). Mô hình ổn định dù tỉ lệ nền giảm gần một nửa.
+  - **Tập test** (2.079 video, 78 trending):
+
+    | Mô hình | Accuracy | Precision | Recall | F1 | PR-AUC | ROC-AUC | P@1% | P@5% | TP / FP / FN |
+    |---|---|---|---|---|---|---|---|---|---|
+    | Mốc: luôn đoán "không" | 0,963 | 0 | 0 | 0 | 0,038 | 0,500 | 0,048 | 0,029 | 0 / 0 / 78 |
+    | Mốc: ngẫu nhiên theo tỉ lệ | 0,921 | 0,011 | 0,013 | 0,012 | 0,037 | 0,485 | 0 | 0,010 | 1 / 87 / 77 |
+    | Logistic Regression, bộ C | 0,917 | 0,148 | 0,256 | 0,188 | 0,154 | 0,811 | 0,238 | 0,135 | 20 / 115 / 58 |
+    | **XGBoost, bộ C** | 0,949 | **0,296** | 0,269 | **0,282** | **0,228** | **0,868** | **0,381** | **0,250** | 21 / 50 / 57 |
+
+  - XGBoost tốt hơn LR ở mọi chỉ số xếp hạng: PR-AUC 0,228 so với 0,154 (gấp 6 lần mốc), ROC-AUC 0,868 so với 0,811; cùng recall khoảng 0,26 nhưng precision gấp đôi (ít cảnh báo sai hơn: 50 so với 115). Cả hai vượt xa hai mô hình mốc.
+- **Hạn chế.** Tập test chỉ có 78 video trending nên mọi chỉ số có sai số lớn; PR-AUC bộ C ở lần chạy của duc (0,233) lệch nhẹ so với lần chạy của phat (0,240) do chạy trên máy khác, không ảnh hưởng kết luận; kiểm tra đợt 1 → đợt 2 vẫn có thể có cùng kênh ở hai đợt nên là kiểm tra ổn định theo thời gian, không phải trên kênh mới.
 
 ## M9. Kết luận chung
 
-*Viết sau khi có M7–M8.* Phần LR đã trả lời: không bác bỏ H₀; giờ đăng không phải "thời điểm vàng" sau khi tính tới loại video và ngày đăng.
+Áp đúng quy tắc chốt trước khi chạy (handover mục 2):
 
-**Giới hạn chung của phần mô hình:** dữ liệu quan sát (chỉ nói được "đi kèm", không nói được "gây ra"); tập sạch chỉ gồm 14 ngày của các kênh đang theo dõi; Shorts ước lượng theo thời lượng; `channel_subscribers` lấy ở lần chụp mới nhất; 315 video trending trên train nên khoảng tin cậy rộng.
+1. **Chưa đủ bằng chứng bác bỏ H₀.** Logistic Regression cho OR giờ nghỉ / giờ hành chính **1,19 (CI 95% 0,81–1,72)** sau khi kiểm soát ngày đăng, quy mô kênh, thể loại, thời lượng; CI chứa 1. Lợi thế thô 1,36 lần chủ yếu đến từ việc giờ hành chính có nhiều video của những ngày tỉ lệ nền thấp. Năm kiểm tra độ vững (M4) đều cho CI chứa 1.
+2. **Kết luận vững theo XGBoost.** `time_slot` có permutation importance ≈ 0 (−0,0005), cùng chiều với LR. Bỏ cả 5 biến thời gian làm PR-AUC giảm 0,022, nhưng mức giảm nhỏ hơn độ nhiễu giữa các fold (độ lệch chuẩn 0,041; 2/5 fold ngược dấu) và nhỏ hơn 2–5 lần so với danh mục, thời lượng, quy mô kênh. Phần tín hiệu còn lại nằm ở **giờ đăng chi tiết** (`publish_hour_vn`, 0,029), khớp đỉnh 16–18h ở EDA C1: giờ đăng chi tiết có thể mang chút thông tin dự đoán, nhưng **khung hành chính / nghỉ thì không**.
+3. **Hai mô hình so với nhau:** XGBoost dự đoán tốt hơn LR (PR-AUC test 0,228 so với 0,154; ROC-AUC 0,868 so với 0,811) và ổn định theo thời gian (đợt 1 → đợt 2: PR-AUC 0,262). LR vẫn là mô hình trả lời H₀ vì cho OR có chiều, độ lớn và khoảng tin cậy. Mô hình mốc có accuracy cao nhất (96,3%) nhưng không tìm ra video trending nào: accuracy không dùng để so mô hình.
+4. **Yếu tố quyết định** là loại video, không phải giờ đăng: thể loại (Trò chơi OR 9,7, Âm nhạc 5,5 so với Giải trí), thời lượng (video 10–60 phút), quy mô kênh (OR 1,8 mỗi 10 lần subscriber). Cả LR (hệ số) lẫn XGBoost (permutation importance) đều xếp ba yếu tố này trên khung giờ.
+5. **Trả lời câu hỏi đề tài:** trong phạm vi dữ liệu này, **không có "thời điểm vàng"** theo nghĩa giờ hành chính so với giờ nghỉ. Đăng chiều tối ngày thường có thể nhỉnh hơn một chút nhưng chưa chắc chắn; chọn đúng loại video quan trọng hơn nhiều.
+
+**Giới hạn chung của phần mô hình:** dữ liệu quan sát (chỉ nói được "đi kèm", không nói được "gây ra"); tập sạch chỉ gồm 14 ngày của các kênh đang theo dõi; Shorts ước lượng theo thời lượng; `channel_subscribers` lấy ở lần chụp mới nhất; 315 video trending trên train và 78 trên test nên khoảng tin cậy rộng, CI của OR không loại trừ lợi thế tới 1,7 lần; cần nhiều tuần dữ liệu hơn để thu hẹp.
+
+**Sản phẩm:** `notebooks/2_Modeling.ipynb` (LR và kết luận, BanNH), `notebooks/2_Modeling_phat_XGB.ipynb` (phat), `notebooks/2_Modeling_XGBoost.ipynb` (duc); `src/modeling/` (`split.py`, `features.py`, `logistic.py`, `model.py`, `xgb_eval.py`); `reports/Report_4_Modeling.pdf`.
