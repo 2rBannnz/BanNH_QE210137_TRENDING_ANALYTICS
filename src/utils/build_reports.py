@@ -6,6 +6,7 @@ trích dẫn, HTML thô) -> PDF bằng Microsoft Edge chạy ẩn (--print-to-pd
 Chạy từ thư mục gốc repo:
     python -m src.utils.build_reports                      # mọi reports/Report_*.md
     python -m src.utils.build_reports reports/Report_1_Proposal.md
+    python -m src.utils.build_reports --tong-ket submission   # gộp Report 1–4 thành 1 file PDF + DOCX
 """
 import html
 import re
@@ -74,7 +75,7 @@ def md_to_html(md: str):
                 buf.append(lines[i]); i += 1
             out.append("\n".join(buf)); continue
         # -- tiêu đề
-        m = re.match(r"^(#{1,4})\s+(.*)$", bare)
+        m = re.match(r"^(#{1,5})\s+(.*)$", bare)
         if m:
             flush()
             level, text = len(m.group(1)), m.group(2).strip()
@@ -190,13 +191,64 @@ def in_pdf(html_path: Path) -> Path:
     cmd = [str(EDGE), "--headless=new", "--disable-gpu", "--no-first-run", f"--user-data-dir={profile}",
            "--no-pdf-header-footer", "--virtual-time-budget=8000", f"--print-to-pdf={pdf}", html_path.resolve().as_uri()]
     for _ in range(3):   # Edge headless thỉnh thoảng thoát mà chưa ghi file; thử lại là được
-        subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
-        if pdf.exists():
+        try:
+            subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        except subprocess.TimeoutExpired:   # file lớn: Edge đôi khi ghi xong PDF nhưng không tự thoát
+            pass
+        if pdf.exists() and pdf.read_bytes().rstrip().endswith(b"%%EOF"):
             return pdf
     raise RuntimeError(f"Edge không tạo được {pdf}")
 
 
+def gop_tong_ket() -> Path:
+    """Gộp TongKet_gioi_thieu.md và Report 1–4 thành một file Markdown (bỏ trang bìa riêng, hạ cấp tiêu đề)."""
+    parts = [(REPORTS / "TongKet_gioi_thieu.md").read_text(encoding="utf-8").rstrip()]
+    for md in sorted(REPORTS.glob("Report_[1-4]_*.md")):
+        s = md.read_text(encoding="utf-8")
+        s = re.sub(r'<div class="cover">.*?\n</div>\n', "", s, count=1, flags=re.S).replace("<!-- TOC -->", "")
+        s = re.sub(r"^(#{1,4}) ", lambda m: "#" * (len(m.group(1)) + 1) + " ", s, flags=re.M)
+        parts.append('<div class="pb"></div>\n\n' + s.strip())
+    out = REPORTS / "_TongKet.md"
+    out.write_text("\n\n".join(parts) + "\n", encoding="utf-8")
+    return out
+
+
+def in_docx(html_path: Path, docx: Path) -> Path:
+    """Chuyển HTML sang DOCX bằng Microsoft Word (COM qua PowerShell); nhúng ảnh vào file."""
+    ps = f"""
+$ErrorActionPreference = 'Stop'
+$w = New-Object -ComObject Word.Application; $w.Visible = $false; $w.DisplayAlerts = 0
+try {{
+  $d = $w.Documents.Open('{html_path.resolve()}', $false, $true)
+  foreach ($s in @($d.InlineShapes)) {{ if ($s.LinkFormat) {{ $s.LinkFormat.SavePictureWithDocument = $true; $s.LinkFormat.BreakLink() }} }}
+  $w.ActiveWindow.View.Type = 3
+  $d.PageSetup.PaperSize = 7
+  $d.PageSetup.TopMargin = 51; $d.PageSetup.BottomMargin = 57; $d.PageSetup.LeftMargin = 48; $d.PageSetup.RightMargin = 48
+  $d.SaveAs2('{docx.resolve()}', 16); $d.Close($false)
+}} finally {{ $w.Quit() }}
+"""
+    subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=True, timeout=600)
+    return docx
+
+
+def tong_ket(out_dir: Path):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md = gop_tong_ket()
+    h = dung_html(md)
+    pdf = in_pdf(h)
+    ten = "BaoCao_TongKet_BanNH_QE210137"
+    dich_pdf = out_dir / f"{ten}.pdf"
+    pdf.replace(dich_pdf)
+    dich_docx = in_docx(h, out_dir / f"{ten}.docx")
+    h.unlink(); md.unlink()
+    for f in (dich_pdf, dich_docx):
+        print(f"{f}  {f.stat().st_size // 1024} KB")
+
+
 def main(args):
+    if args[:1] == ["--tong-ket"]:
+        tong_ket(Path(args[1]) if len(args) > 1 else Config.REPO_ROOT / "submission")
+        return
     files = [Path(a) for a in args] or sorted(REPORTS.glob("Report_*.md"))
     for md in files:
         h = dung_html(md)
